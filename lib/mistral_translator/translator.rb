@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "logger"
+
 module MistralTranslator
   class Translator
     DEFAULT_RETRY_COUNT = 3
@@ -120,17 +122,7 @@ module MistralTranslator
     end
 
     def build_language_detection_prompt(text)
-      <<~PROMPT
-        Détecte la langue du texte suivant et réponds uniquement avec le code ISO 639-1 de la langue (ex: 'fr', 'en', 'es').
-
-        Format de réponse obligatoire en JSON :
-        {
-          "detected_language": "code_iso"
-        }
-
-        Texte à analyser :
-        #{text}
-      PROMPT
+      PromptBuilder.language_detection_prompt(text)
     end
 
     def parse_language_detection(response)
@@ -156,6 +148,7 @@ module MistralTranslator
       # Convertir to en array pour la validation
       target_languages = Array(to)
       raise ArgumentError, "Target languages cannot be empty" if target_languages.empty?
+
       validate_inputs!(text, from, target_languages.first)
     end
 
@@ -170,23 +163,15 @@ module MistralTranslator
     end
 
     def log_retry(error, attempt, wait_time)
-      message = "[MistralTranslator] #{error.class.name}: #{error.message}. Retry #{attempt}/#{DEFAULT_RETRY_COUNT} in #{wait_time}s"
-
-      if defined?(Rails) && Rails.respond_to?(:logger)
-        Rails.logger.warn message
-      elsif ENV["MISTRAL_TRANSLATOR_DEBUG"]
-        puts message
-      end
+      message = "#{error.class.name}: #{error.message}. Retry #{attempt}/#{DEFAULT_RETRY_COUNT} in #{wait_time}s"
+      # Log une seule fois par type d'erreur pour éviter le spam
+      Logger.warn_once(message, key: "retry_#{error.class.name}", sensitive: false, ttl: 120)
     end
 
     def log_rate_limit_hit(source, target)
-      message = "[MistralTranslator] Rate limit hit for translation #{source} -> #{target}, retrying..."
-
-      if defined?(Rails) && Rails.respond_to?(:logger)
-        Rails.logger.warn message
-      elsif ENV["MISTRAL_TRANSLATOR_DEBUG"]
-        puts message
-      end
+      message = "Rate limit hit for translation #{source} -> #{target}, retrying..."
+      # Log une seule fois par paire de langues
+      Logger.warn_once(message, key: "rate_limit_#{source}_#{target}", sensitive: false, ttl: 300)
     end
   end
 end

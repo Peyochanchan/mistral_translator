@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "logger"
+
 module MistralTranslator
   class Summarizer
     DEFAULT_MAX_WORDS = 250
@@ -200,32 +202,25 @@ module MistralTranslator
     end
 
     def log_retry(error, attempt, wait_time, locale)
-      message = "[MistralTranslator] Summary retry #{attempt}/#{DEFAULT_RETRY_COUNT} for #{locale} in #{wait_time}s: #{error.message}"
-      log_message(message, level: :warn)
+      message = "Summary retry #{attempt}/#{DEFAULT_RETRY_COUNT} for #{locale} in #{wait_time}s: #{error.message}"
+      # Log une seule fois par locale et type d'erreur
+      Logger.warn_once(message, key: "summary_retry_#{locale}_#{error.class.name}", sensitive: false, ttl: 120)
     end
 
     def log_rate_limit_hit(operation, locale)
-      message = "[MistralTranslator] Rate limit hit for #{operation} in #{locale}, retrying..."
-      log_message(message, level: :warn)
+      message = "Rate limit hit for #{operation} in #{locale}, retrying..."
+      # Log une seule fois par opération et locale
+      Logger.warn_once(message, key: "summary_rate_limit_#{operation}_#{locale}", sensitive: false, ttl: 300)
     end
 
     def log_debug(message)
-      log_message("[MistralTranslator] #{message}", level: :debug)
-    end
+      # Log de debug seulement si mode verbose activé
+      Logger.debug_if_verbose(message, sensitive: false)
 
-    def log_message(message, level: :info)
-      if defined?(Rails) && Rails.respond_to?(:logger)
-        case level
-        when :warn
-          Rails.logger.warn message
-        when :debug
-          Rails.logger.debug message
-        else
-          Rails.logger.info message
-        end
-      elsif ENV["MISTRAL_TRANSLATOR_DEBUG"]
-        puts message
-      end
+      # Pour les tests, permettre un output dans stdout si nécessaire
+      return unless ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] == "true"
+
+      puts "[MistralTranslator] #{message}"
     end
   end
 end

@@ -406,9 +406,11 @@ RSpec.describe MistralTranslator::Summarizer do
     describe "logging methods" do
       describe "#log_debug" do
         it "logs debug messages when debug enabled" do
+          ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] = "true"
           expect { summarizer.send(:log_debug, "test message") }.to output(
             /\[MistralTranslator\] test message/
           ).to_stdout
+          ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] = nil
         end
       end
     end
