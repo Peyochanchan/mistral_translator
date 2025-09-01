@@ -28,8 +28,9 @@ module MistralTranslator
 
       results = {}
 
-      target_locales.each do |target_locale|
-        sleep(DEFAULT_RETRY_DELAY) # Délai entre les requêtes pour éviter le rate limiting
+      target_locales.each_with_index do |target_locale, index|
+        # Délai entre les requêtes, mais pas avant la première
+        sleep(DEFAULT_RETRY_DELAY) if index > 0
         results[target_locale] = translate_with_retry(text, source_locale, target_locale)
       end
 
@@ -152,8 +153,10 @@ module MistralTranslator
     end
 
     def validate_translation_inputs!(text, from, to)
-      validate_inputs!(text, from, to.first || to)
-      raise ArgumentError, "Target languages cannot be empty" if Array(to).empty?
+      # Convertir to en array pour la validation
+      target_languages = Array(to)
+      raise ArgumentError, "Target languages cannot be empty" if target_languages.empty?
+      validate_inputs!(text, from, target_languages.first)
     end
 
     def validate_batch_inputs!(texts, from, to)

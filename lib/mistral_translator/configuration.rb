@@ -14,12 +14,14 @@ module MistralTranslator
     end
 
     def api_key!
-      raise ConfigurationError, "API key is required. Set it with MistralTranslator.configure { |c| c.api_key = 'your_key' }" if @api_key.nil?
+      if @api_key.nil?
+        raise ConfigurationError,
+              "API key is required. Set it with MistralTranslator.configure { |c| c.api_key = 'your_key' }"
+      end
+
       @api_key
     end
   end
-
-  class ConfigurationError < StandardError; end
 
   class << self
     def configuration

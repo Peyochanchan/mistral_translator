@@ -1,0 +1,80 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.mistral.ai/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"mistral-small","messages":[{"role":"user","content":"Hello"}],"max_tokens":10}'
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - mistral-translator-gem/0.1.0
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Mon, 01 Sep 2025 18:50:06 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Mistral-Correlation-Id:
+      - '0199069d-73e3-708c-adde-97c606961aac'
+      X-Kong-Request-Id:
+      - '0199069d-73e3-708c-adde-97c606961aac'
+      X-Envoy-Upstream-Service-Time:
+      - '159'
+      X-Ratelimit-Limit-Tokens-Minute:
+      - '500000'
+      X-Ratelimit-Remaining-Tokens-Minute:
+      - '499981'
+      X-Ratelimit-Limit-Tokens-Month:
+      - '1000000000'
+      X-Ratelimit-Remaining-Tokens-Month:
+      - '999999924'
+      X-Ratelimit-Tokens-Query-Cost:
+      - '19'
+      X-Ratelimit-Limit-Req-Minute:
+      - '60'
+      X-Ratelimit-Remaining-Req-Minute:
+      - '59'
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Kong-Upstream-Latency:
+      - '160'
+      X-Kong-Proxy-Latency:
+      - '7'
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=HFLeuZQZf9O5SvjRerXJIFsLhRA12IyNyDv73d6of64-1756752606-1.0.1.1-2x6ibbjbuu82Oxpz6UhhC2U_JUOIzNnYiCt26SnL20qlBa1N68MspDZ96qXyM9kvAskxWQKwyx.jLfIDWx9aV.G_4Guzg0lXA9sRTqmmoIo;
+        path=/; expires=Mon, 01-Sep-25 19:20:06 GMT; domain=.mistral.ai; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=0YAG0TILF8UaXCHvW2Nx44PJQLOHn96b.XFShl4qjhg-1756752606425-0.0.1.1-604800000;
+        path=/; domain=.mistral.ai; HttpOnly; Secure; SameSite=None
+      Strict-Transport-Security:
+      - max-age=15552000; includeSubDomains
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9786f38bbc766edf-CDG
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: '{"id":"2fea5d82fff04f098440e8dbf2a7b15a","created":1756752606,"model":"mistral-small","usage":{"prompt_tokens":9,"total_tokens":19,"completion_tokens":10},"object":"chat.completion","choices":[{"index":0,"finish_reason":"length","message":{"role":"assistant","tool_calls":null,"content":"Hello!
+        How can I help you today? If"}}]}'
+  recorded_at: Mon, 01 Sep 2025 18:50:06 GMT
+recorded_with: VCR 6.3.1

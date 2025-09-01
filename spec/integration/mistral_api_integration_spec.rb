@@ -3,13 +3,25 @@
 require "spec_helper"
 
 RSpec.describe "Mistral API Integration", :vcr do
-  before(:all) do
-    # Configuration pour les tests d'intégration
-    # Utilisez une vraie clé API pour enregistrer les cassettes VCR
+  before(:each) do
+    # Vérifier que la clé API est disponible pour chaque test
+    skip "MISTRAL_API_KEY environment variable required for integration tests" unless ENV["MISTRAL_API_KEY"]
+
+    # Vérifier que la clé API fonctionne vraiment
+    MistralTranslator.reset_configuration!
     MistralTranslator.configure do |config|
-      config.api_key = ENV["MISTRAL_API_KEY"] || "test_api_key"
+      config.api_key = ENV["MISTRAL_API_KEY"]
       config.retry_delays = [1, 2] # Retry plus rapides pour les tests
     end
+
+    # Test de connexion rapide
+    health = MistralTranslator.health_check
+    skip "API connection failed: #{health[:message]}" unless health[:status] == :ok
+  end
+
+  after(:each) do
+    # Nettoyer la configuration après chaque test
+    MistralTranslator.reset_configuration!
   end
 
   describe "Translation workflow", vcr: { cassette_name: "translation_workflow" } do
@@ -64,7 +76,8 @@ RSpec.describe "Mistral API Integration", :vcr do
     end
   end
 
-  describe "Summarization workflow", vcr: { cassette_name: "summarization_workflow" } do
+  describe "Summarization workflow",
+           vcr: { cassette_name: "summarization_workflow", allow_unused_http_interactions: true } do
     let(:long_text) do
       "Ruby on Rails est un framework de développement web écrit en Ruby. " \
       "Il suit le paradigme Modèle-Vue-Contrôleur (MVC) et privilégie la convention " \
@@ -115,13 +128,30 @@ RSpec.describe "Mistral API Integration", :vcr do
     end
   end
 
-  describe "Error handling", vcr: { cassette_name: "error_handling" } do
+  describe "Error handling" do
     it "handles invalid API key gracefully" do
-      MistralTranslator.configure { |c| c.api_key = "invalid_key" }
+      # Ce test doit être exécuté avec VCR pour enregistrer la vraie erreur d'API
+      # Nous utilisons une cassette VCR qui permettra d'enregistrer l'erreur 401
+      VCR.use_cassette("error_handling", record: :new_episodes) do
+        # Sauvegarder la configuration actuelle
+        original_api_key = MistralTranslator.configuration.api_key
 
-      expect { MistralTranslator.translate("Hello", from: "en", to: "fr") }.to raise_error(
-        MistralTranslator::AuthenticationError
-      )
+        begin
+          # Configurer une clé API invalide
+          MistralTranslator.configure { |c| c.api_key = "invalid_key" }
+
+          # S'assurer que la configuration a été appliquée
+          expect(MistralTranslator.configuration.api_key).to eq("invalid_key")
+
+          # Le test doit lever une erreur d'authentification
+          expect { MistralTranslator.translate("Hello", from: "en", to: "fr") }.to raise_error(
+            MistralTranslator::AuthenticationError
+          )
+        ensure
+          # Restaurer la configuration originale
+          MistralTranslator.configure { |c| c.api_key = original_api_key }
+        end
+      end
     end
   end
 

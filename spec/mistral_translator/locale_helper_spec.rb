@@ -51,7 +51,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
       locales = described_class.supported_locales
       expect(locales).to be_an(Array)
       expect(locales).to include("fr", "en", "es", "de", "it")
-      expect(locales.length).to eq(12)
+      expect(locales.length).to eq(13)
     end
   end
 
@@ -60,7 +60,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
       languages = described_class.supported_languages
       expect(languages).to be_an(Array)
       expect(languages).to include("français", "english", "español")
-      expect(languages.length).to eq(12)
+      expect(languages.length).to eq(13)
     end
   end
 
@@ -115,6 +115,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
       expect(described_class.normalize_locale("")).to eq("")
       expect(described_class.normalize_locale("fr-")).to eq("fr")
       expect(described_class.normalize_locale("-fr")).to eq("")
+      expect(described_class.normalize_locale(nil)).to eq("")
     end
   end
 

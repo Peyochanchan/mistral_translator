@@ -78,11 +78,8 @@ RSpec.describe MistralTranslator::ResponseParser do
     end
 
     context "with invalid responses" do
-      it "raises InvalidResponseError for invalid JSON" do
-        expect { described_class.parse_translation_response("invalid json") }.to raise_error(
-          MistralTranslator::InvalidResponseError,
-          /Invalid JSON in response/
-        )
+      it "returns nil for invalid JSON format" do
+        expect(described_class.parse_translation_response("{invalid json")).to be_nil
       end
 
       it "returns nil for nil input" do

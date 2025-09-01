@@ -18,6 +18,22 @@ module MistralTranslator
       "ar" => "العربية"
     }.freeze
 
+    # Mapping des noms alternatifs vers les codes de langue
+    LANGUAGE_ALIASES = {
+      "french" => "fr",
+      "german" => "de",
+      "spanish" => "es",
+      "portuguese" => "pt",
+      "italian" => "it",
+      "dutch" => "nl",
+      "russian" => "ru",
+      "malagasy" => "mg",
+      "japanese" => "ja",
+      "korean" => "ko",
+      "chinese" => "zh",
+      "arabic" => "ar"
+    }.freeze
+
     class << self
       def locale_to_language(locale)
         locale_code = normalize_locale(locale)
@@ -27,15 +43,12 @@ module MistralTranslator
       def language_to_locale(language)
         normalized_language = language.to_s.downcase.strip
 
+        # Vérifier d'abord les alias
+        return LANGUAGE_ALIASES[normalized_language] if LANGUAGE_ALIASES.key?(normalized_language)
+
         # Recherche directe par valeur
         found_locale = SUPPORTED_LANGUAGES.find { |_, lang| lang.downcase == normalized_language }
         return found_locale[0] if found_locale
-
-        # Recherche partielle (pour "french" -> "français")
-        partial_match = SUPPORTED_LANGUAGES.find do |_, lang|
-          lang.downcase.include?(normalized_language) || normalized_language.include?(lang.downcase)
-        end
-        return partial_match[0] if partial_match
 
         # Retourne la langue telle quelle si pas trouvée
         normalized_language
@@ -61,7 +74,20 @@ module MistralTranslator
       end
 
       def normalize_locale(locale)
-        locale.to_s.downcase.split("-").first.split("_").first
+        return "" if locale.nil? || locale.to_s.empty?
+
+        normalized = locale.to_s.downcase
+        return "" if normalized.empty?
+
+        # Diviser par "-" et prendre la première partie
+        first_part = normalized.split("-").first
+        return "" if first_part.nil? || first_part.empty?
+
+        # Diviser par "_" et prendre la première partie
+        result = first_part.split("_").first
+        return "" if result.nil? || result.empty?
+
+        result
       end
 
       # Méthode pour obtenir une liste formatée des langues supportées

@@ -23,6 +23,8 @@ module MistralTranslator
       content
     rescue JSON::ParserError => e
       raise InvalidResponseError, "Invalid JSON in API response: #{e.message}"
+    rescue NoMethodError => e
+      raise InvalidResponseError, "Invalid response structure: #{e.message}"
     end
 
     def chat(prompt, max_tokens: nil, temperature: nil)
@@ -32,6 +34,8 @@ module MistralTranslator
       parsed_response.dig("choices", 0, "message", "content")
     rescue JSON::ParserError => e
       raise InvalidResponseError, "JSON parse error: #{e.message}"
+    rescue NoMethodError => e
+      raise InvalidResponseError, "Invalid response structure: #{e.message}"
     end
 
     private
@@ -65,10 +69,12 @@ module MistralTranslator
       log_request_response(request_body, response)
 
       response
-    rescue Net::TimeoutError => e
+    rescue Net::ReadTimeout => e
       raise ApiError, "Request timeout: #{e.message}"
     rescue Net::HTTPError => e
       raise ApiError, "HTTP error: #{e.message}"
+    rescue Timeout::Error => e
+      raise ApiError, "Request timeout: #{e.message}"
     end
 
     def build_request_body(prompt, max_tokens, temperature)
