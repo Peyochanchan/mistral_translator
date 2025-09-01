@@ -46,13 +46,26 @@ RSpec.configure do |config|
     end
   end
 
+  # Permettre les connexions réseau pour les tests d'intégration
+  config.before(:each, :integration) do
+    WebMock.allow_net_connect!
+  end
+
+  config.after(:each, :integration) do
+    WebMock.disable_net_connect!
+  end
+
   # Helpers pour les tests
   config.include(Module.new do
     def stub_mistral_api(response_body:, status: 200)
+      # Si response_body est déjà une chaîne, on l'utilise directement
+      # Sinon on la convertit en JSON
+      body = response_body.is_a?(String) ? response_body : response_body.to_json
+
       stub_request(:post, "https://api.mistral.ai/v1/chat/completions")
         .to_return(
           status: status,
-          body: response_body.to_json,
+          body: body,
           headers: { "Content-Type" => "application/json" }
         )
     end

@@ -1,0 +1,447 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.mistral.ai/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"mistral-small","messages":[{"role":"user","content":"Hello"}],"max_tokens":10}'
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - mistral-translator-gem/0.1.0
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Mon, 01 Sep 2025 18:58:51 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Mistral-Correlation-Id:
+      - '019906a5-786f-7f36-b52f-c20f6b0e747e'
+      X-Kong-Request-Id:
+      - '019906a5-786f-7f36-b52f-c20f6b0e747e'
+      X-Envoy-Upstream-Service-Time:
+      - '152'
+      X-Ratelimit-Limit-Tokens-Minute:
+      - '500000'
+      X-Ratelimit-Remaining-Tokens-Minute:
+      - '498123'
+      X-Ratelimit-Limit-Tokens-Month:
+      - '1000000000'
+      X-Ratelimit-Remaining-Tokens-Month:
+      - '999998028'
+      X-Ratelimit-Tokens-Query-Cost:
+      - '19'
+      X-Ratelimit-Limit-Req-Minute:
+      - '60'
+      X-Ratelimit-Remaining-Req-Minute:
+      - '48'
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Kong-Upstream-Latency:
+      - '152'
+      X-Kong-Proxy-Latency:
+      - '8'
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=pqafTobAjHNBYuGUWJDmQ63V_BOKcsb8fD1Dt3n36sg-1756753131-1.0.1.1-G9TVQTLjrLUHxQdbjSIHSov5Y0zKX4BCguzwGwva93PocgpTve5uiF9lOVIOmtH.cK2D2sd9S0K6zx5UQRwFn2GULyNBBosWI0aPdyO03_0;
+        path=/; expires=Mon, 01-Sep-25 19:28:51 GMT; domain=.mistral.ai; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=56VU7H1pHws_dRi1YVGKAhnlIvP21rrxXI7IvbXVMuI-1756753131810-0.0.1.1-604800000;
+        path=/; domain=.mistral.ai; HttpOnly; Secure; SameSite=None
+      Strict-Transport-Security:
+      - max-age=15552000; includeSubDomains
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9787006009fad0ba-CDG
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: '{"id":"887306eca02a405a9214af377a6c5c8c","created":1756753131,"model":"mistral-small","usage":{"prompt_tokens":9,"total_tokens":19,"completion_tokens":10},"object":"chat.completion","choices":[{"index":0,"finish_reason":"length","message":{"role":"assistant","tool_calls":null,"content":"Hello!
+        How can I help you today? If"}}]}'
+  recorded_at: Mon, 01 Sep 2025 18:58:51 GMT
+- request:
+    method: post
+    uri: https://api.mistral.ai/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"mistral-small","messages":[{"role":"user","content":"Tu es
+        un assistant spécialisé dans la création de résumés. Tu ne dois pas halluciner
+        et générer un résumé en respectant ces règles strictes :\n1. Longueur maximale
+        : 50 mots\n2. Langue : français (fr)\n3. Conserve les informations essentielles
+        du texte original\n4. Format de réponse obligatoire en JSON :\n{\n  \"content\":
+        {\n    \"source\": \"texte original\",\n    \"target\": \"texte résumé en
+        français\"\n  },\n  \"metadata\": {\n    \"source\": \"original\",\n    \"target\":
+        \"summary\",\n    \"word_count\": 50,\n    \"language\": \"fr\"\n  }\n}\n\nTexte
+        à résumer :\nRuby on Rails est un framework de développement web écrit en
+        Ruby. Il suit le paradigme Modèle-Vue-Contrôleur (MVC) et privilégie la convention
+        plutôt que la configuration. Rails comprend de nombreux outils pour faciliter
+        le développement d''applications web, notamment un ORM appelé Active Record,
+        un système de routage flexible, et des générateurs de code. Le framework a
+        été créé par David Heinemeier Hansson en 2004 et est largement utilisé pour
+        construire des applications web modernes.\n"}]}'
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - mistral-translator-gem/0.1.0
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Mon, 01 Sep 2025 18:58:53 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Mistral-Correlation-Id:
+      - '019906a5-7981-78aa-90b3-fd432789339c'
+      X-Kong-Request-Id:
+      - '019906a5-7981-78aa-90b3-fd432789339c'
+      X-Envoy-Upstream-Service-Time:
+      - '1912'
+      X-Ratelimit-Limit-Tokens-Minute:
+      - '500000'
+      X-Ratelimit-Remaining-Tokens-Minute:
+      - '497569'
+      X-Ratelimit-Limit-Tokens-Month:
+      - '1000000000'
+      X-Ratelimit-Remaining-Tokens-Month:
+      - '999997474'
+      X-Ratelimit-Tokens-Query-Cost:
+      - '554'
+      X-Ratelimit-Limit-Req-Minute:
+      - '60'
+      X-Ratelimit-Remaining-Req-Minute:
+      - '47'
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Kong-Upstream-Latency:
+      - '1913'
+      X-Kong-Proxy-Latency:
+      - '6'
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=5DfIVDu_bJGxpqPxaG9dma6f0Ww61zNwh_LfYI1giJ8-1756753133-1.0.1.1-WgxtSXAOoobFhz0wO7YgXVSFfO6jUtgjpwDen5mOWKgLRBpTl7jtC9LRfpzOoIYBSs58Evhb4kTkwLnmSHV19IpbH6ElG4EIgqUO.r1SAHk;
+        path=/; expires=Mon, 01-Sep-25 19:28:53 GMT; domain=.mistral.ai; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=P8bEyQFOoie2pDJ694TAgXPT5Xu1Th5z9_c4QRfvi6Q-1756753133852-0.0.1.1-604800000;
+        path=/; domain=.mistral.ai; HttpOnly; Secure; SameSite=None
+      Strict-Transport-Security:
+      - max-age=15552000; includeSubDomains
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 978700622ed17808-CDG
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        eyJpZCI6ImFjZDJlNGUxOTc1YjRjMTI4ZGEwMDliYjliZTIzMmY0IiwiY3JlYXRlZCI6MTc1Njc1MzEzMSwibW9kZWwiOiJtaXN0cmFsLXNtYWxsIiwidXNhZ2UiOnsicHJvbXB0X3Rva2VucyI6MzI0LCJ0b3RhbF90b2tlbnMiOjU1NCwiY29tcGxldGlvbl90b2tlbnMiOjIzMH0sIm9iamVjdCI6ImNoYXQuY29tcGxldGlvbiIsImNob2ljZXMiOlt7ImluZGV4IjowLCJmaW5pc2hfcmVhc29uIjoic3RvcCIsIm1lc3NhZ2UiOnsicm9sZSI6ImFzc2lzdGFudCIsInRvb2xfY2FsbHMiOm51bGwsImNvbnRlbnQiOiJ7XG4gIFwiY29udGVudFwiOiB7XG4gICAgXCJzb3VyY2VcIjogXCJSdWJ5IG9uIFJhaWxzIGlzIGEgd2ViIGRldmVsb3BtZW50IGZyYW1ld29yayB3cml0dGVuIGluIFJ1YnksIGZvbGxvd2luZyB0aGUgTW9kZWwtVmlldy1Db250cm9sbGVyIChNVkMpIHBhdHRlcm4gYW5kIGZhdm9yaW5nIGNvbnZlbnRpb24gb3ZlciBjb25maWd1cmF0aW9uLiBJdCBpbmNsdWRlcyB0b29scyBsaWtlIHRoZSBBY3RpdmUgUmVjb3JkIE9STSwgZmxleGlibGUgcm91dGluZywgYW5kIGNvZGUgZ2VuZXJhdG9ycy4gQ3JlYXRlZCBpbiAyMDA0IGJ5IERhdmlkIEhlaW5lbWVpZXIgSGFuc3NvbiwgaXQncyB3aWRlbHkgdXNlZCBmb3IgbW9kZXJuIHdlYiBhcHBsaWNhdGlvbnMuXCIsXG4gICAgXCJ0YXJnZXRcIjogXCJSdWJ5IG9uIFJhaWxzLCBjcsOpw6kgZW4gMjAwNCwgZXN0IHVuIGZyYW1ld29yayBSdWJ5IHBvdXIgbGUgZMOpdmVsb3BwZW1lbnQgd2ViLiBJbCBzdWl0IGxlIG1vZMOobGUgTVZDIGV0IHByaXZpbMOpZ2llIGxhIGNvbnZlbnRpb24uIElsIGluY2x1dCBkZXMgb3V0aWxzIHRlbHMgcXVlIGwnT1JNIEFjdGl2ZSBSZWNvcmQsIHVuIHN5c3TDqG1lIGRlIHJvdXRhZ2UgZmxleGlibGUgZXQgZGVzIGfDqW7DqXJhdGV1cnMgZGUgY29kZSwgZmFjaWxpdGFudCBsZSBkw6l2ZWxvcHBlbWVudCBkJ2FwcGxpY2F0aW9ucyB3ZWIuXCJcbiAgfSxcbiAgXCJtZXRhZGF0YVwiOiB7XG4gICAgXCJzb3VyY2VcIjogXCJvcmlnaW5hbFwiLFxuICAgIFwidGFyZ2V0XCI6IFwic3VtbWFyeVwiLFxuICAgIFwid29yZF9jb3VudFwiOiA1MCxcbiAgICBcImxhbmd1YWdlXCI6IFwiZnJcIlxuICB9XG59In19XX0=
+  recorded_at: Mon, 01 Sep 2025 18:58:53 GMT
+- request:
+    method: post
+    uri: https://api.mistral.ai/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"mistral-small","messages":[{"role":"user","content":"Tu es
+        un assistant spécialisé dans la création de résumés. Tu ne dois pas halluciner
+        et générer un résumé en respectant ces règles strictes :\n1. Longueur maximale
+        : 75 mots\n2. Langue : français (fr)\n3. Conserve les informations essentielles
+        du texte original\n4. Format de réponse obligatoire en JSON :\n{\n  \"content\":
+        {\n    \"source\": \"texte original\",\n    \"target\": \"texte résumé en
+        français\"\n  },\n  \"metadata\": {\n    \"source\": \"original\",\n    \"target\":
+        \"summary\",\n    \"word_count\": 75,\n    \"language\": \"fr\"\n  }\n}\n\nTexte
+        à résumer :\nRuby on Rails est un framework de développement web écrit en
+        Ruby. Il suit le paradigme Modèle-Vue-Contrôleur (MVC) et privilégie la convention
+        plutôt que la configuration. Rails comprend de nombreux outils pour faciliter
+        le développement d''applications web, notamment un ORM appelé Active Record,
+        un système de routage flexible, et des générateurs de code. Le framework a
+        été créé par David Heinemeier Hansson en 2004 et est largement utilisé pour
+        construire des applications web modernes.\n"}]}'
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - mistral-translator-gem/0.1.0
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Mon, 01 Sep 2025 18:58:54 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Mistral-Correlation-Id:
+      - '019906a5-81af-74c1-8ca4-05be25c80290'
+      X-Kong-Request-Id:
+      - '019906a5-81af-74c1-8ca4-05be25c80290'
+      X-Envoy-Upstream-Service-Time:
+      - '644'
+      X-Ratelimit-Limit-Tokens-Minute:
+      - '500000'
+      X-Ratelimit-Remaining-Tokens-Minute:
+      - '497175'
+      X-Ratelimit-Limit-Tokens-Month:
+      - '1000000000'
+      X-Ratelimit-Remaining-Tokens-Month:
+      - '999997080'
+      X-Ratelimit-Tokens-Query-Cost:
+      - '394'
+      X-Ratelimit-Limit-Req-Minute:
+      - '60'
+      X-Ratelimit-Remaining-Req-Minute:
+      - '46'
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Kong-Upstream-Latency:
+      - '644'
+      X-Kong-Proxy-Latency:
+      - '7'
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=D5zhr3WFpqn2LWHAhvYTzA03UJxUciJ8tBfIvETCdaw-1756753134-1.0.1.1-01ieDo_hOG2_asIKFd5nj6CZZOLcXxkLd8UFdF7tI.K8ah09OpXVQ8OEvd1Q5QRDKb3xDKIXv5TKa71Y2ZT09GmdWbZO_jnBQwqbJH68VTg;
+        path=/; expires=Mon, 01-Sep-25 19:28:54 GMT; domain=.mistral.ai; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=ROyLiWzE8UceJ2Kvb8O1HJ2jmUDp4CC38zEe6hOAZYc-1756753134670-0.0.1.1-604800000;
+        path=/; domain=.mistral.ai; HttpOnly; Secure; SameSite=None
+      Strict-Transport-Security:
+      - max-age=15552000; includeSubDomains
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9787006f4d986b98-CDG
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: '{"id":"f3bbe8066f3f49d8aea8583e82a2390c","created":1756753134,"model":"mistral-small","usage":{"prompt_tokens":324,"total_tokens":394,"completion_tokens":70},"object":"chat.completion","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","tool_calls":null,"content":"{\n  \"content\":
+        {\n    \"source\": \"Ruby on Rails est a framework written in Ruby for web
+        development, following the Model-View-Controller paradigm and favoring convention
+        over configuration. It includes tools like the Active Record ORM, flexible
+        routing, and code generators. Created in 2"}}]}'
+  recorded_at: Mon, 01 Sep 2025 18:58:54 GMT
+- request:
+    method: post
+    uri: https://api.mistral.ai/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"mistral-small","messages":[{"role":"user","content":"Tu es
+        un assistant spécialisé dans la création de résumés. Tu ne dois pas halluciner
+        et générer un résumé en respectant ces règles strictes :\n1. Longueur maximale
+        : 75 mots\n2. Langue : français (fr)\n3. Conserve les informations essentielles
+        du texte original\n4. Format de réponse obligatoire en JSON :\n{\n  \"content\":
+        {\n    \"source\": \"texte original\",\n    \"target\": \"texte résumé en
+        français\"\n  },\n  \"metadata\": {\n    \"source\": \"original\",\n    \"target\":
+        \"summary\",\n    \"word_count\": 75,\n    \"language\": \"fr\"\n  }\n}\n\nTexte
+        à résumer :\nRuby on Rails est un framework de développement web écrit en
+        Ruby. Il suit le paradigme Modèle-Vue-Contrôleur (MVC) et privilégie la convention
+        plutôt que la configuration. Rails comprend de nombreux outils pour faciliter
+        le développement d''applications web, notamment un ORM appelé Active Record,
+        un système de routage flexible, et des générateurs de code. Le framework a
+        été créé par David Heinemeier Hansson en 2004 et est largement utilisé pour
+        construire des applications web modernes.\n"}]}'
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - mistral-translator-gem/0.1.0
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Mon, 01 Sep 2025 18:58:59 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Mistral-Correlation-Id:
+      - '019906a5-8ca0-75b7-ab40-21fc7532627a'
+      X-Kong-Request-Id:
+      - '019906a5-8ca0-75b7-ab40-21fc7532627a'
+      X-Envoy-Upstream-Service-Time:
+      - '2746'
+      X-Ratelimit-Limit-Tokens-Minute:
+      - '500000'
+      X-Ratelimit-Remaining-Tokens-Minute:
+      - '496609'
+      X-Ratelimit-Limit-Tokens-Month:
+      - '1000000000'
+      X-Ratelimit-Remaining-Tokens-Month:
+      - '999996514'
+      X-Ratelimit-Tokens-Query-Cost:
+      - '566'
+      X-Ratelimit-Limit-Req-Minute:
+      - '60'
+      X-Ratelimit-Remaining-Req-Minute:
+      - '45'
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Kong-Upstream-Latency:
+      - '2747'
+      X-Kong-Proxy-Latency:
+      - '7'
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=g3fvIP7CTMAZevaq3e18iukQ6FSg85PAj2QVcM6_B0I-1756753139-1.0.1.1-C6lFY4Yz1zlRjRgbaL_vJUchPWbQHfULWMDLUxyl7r7PzHv_oFtjQgb6usXdg.5Gz3peY2YasokupVvA6cvD0_CILXT_gOZAdyS.3rvLkMI;
+        path=/; expires=Mon, 01-Sep-25 19:28:59 GMT; domain=.mistral.ai; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=ZVGLQjKzeWVREXeoJATYqWs0dNlzaK.ynJ6LVzR8cBg-1756753139569-0.0.1.1-604800000;
+        path=/; domain=.mistral.ai; HttpOnly; Secure; SameSite=None
+      Strict-Transport-Security:
+      - max-age=15552000; includeSubDomains
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 97870080bc11da7c-CDG
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        eyJpZCI6ImM3NmQ2ODViZjA5ODRkN2E5YjU4YTlmOTgyODEyZGM3IiwiY3JlYXRlZCI6MTc1Njc1MzEzNiwibW9kZWwiOiJtaXN0cmFsLXNtYWxsIiwidXNhZ2UiOnsicHJvbXB0X3Rva2VucyI6MzI0LCJ0b3RhbF90b2tlbnMiOjU2NiwiY29tcGxldGlvbl90b2tlbnMiOjI0Mn0sIm9iamVjdCI6ImNoYXQuY29tcGxldGlvbiIsImNob2ljZXMiOlt7ImluZGV4IjowLCJmaW5pc2hfcmVhc29uIjoic3RvcCIsIm1lc3NhZ2UiOnsicm9sZSI6ImFzc2lzdGFudCIsInRvb2xfY2FsbHMiOm51bGwsImNvbnRlbnQiOiJ7XG4gIFwiY29udGVudFwiOiB7XG4gICAgXCJzb3VyY2VcIjogXCJSdWJ5IG9uIFJhaWxzIGVzdCBhIGZyYW1ld29yayBmb3Igd2ViIGRldmVsb3BtZW50IHdyaXR0ZW4gaW4gUnVieSwgZm9sbG93aW5nIHRoZSBNVkMgcGFyYWRpZ20gYW5kIGZhdm9yaW5nIGNvbnZlbnRpb24gb3ZlciBjb25maWd1cmF0aW9uLiBJdCBpbmNsdWRlcyBtYW55IHRvb2xzIHN1Y2ggYXMgYW4gT1JNIGNhbGxlZCBBY3RpdmUgUmVjb3JkLCBhIGZsZXhpYmxlIHJvdXRpbmcgc3lzdGVtLCBhbmQgY29kZSBnZW5lcmF0b3JzLiBDcmVhdGVkIGJ5IERhdmlkIEhlaW5lbWVpZXIgSGFuc3NvbiBpbiAyMDA0LCBpdCdzIHdpZGVseSB1c2VkIGZvciBidWlsZGluZyBtb2Rlcm4gd2ViIGFwcGxpY2F0aW9ucy5cIixcbiAgICBcInRhcmdldFwiOiBcIlJ1Ynkgb24gUmFpbHMsIGNyw6nDqSBlbiAyMDA0IHBhciBEYXZpZCBIZWluZW1laWVyIEhhbnNzb24sIGVzdCB1biBmcmFtZXdvcmsgw6ljcml0IGVuIFJ1YnkgcXVpIHN1aXQgbGUgcGFyYWRpZ21lIE1WQyBldCBwcml2aWzDqWdpZSBsYSBjb252ZW50aW9uIMOgIGxhIGNvbmZpZ3VyYXRpb24uIElsIGluY2x1dCBkZXMgb3V0aWxzIHRlbHMgcXUndW4gT1JNIChBY3RpdmUgUmVjb3JkKSwgdW4gc3lzdMOobWUgZGUgcm91dGFnZSBmbGV4aWJsZSBldCBkZXMgZ8OpbsOpcmF0ZXVycyBkZSBjb2RlLCBmYWNpbGl0YW50IGxlIGTDqXZlbG9wcGVtZW50IGQnYXBwbGljYXRpb25zIHdlYi5cIlxuICB9LFxuICBcIm1ldGFkYXRhXCI6IHtcbiAgICBcInNvdXJjZVwiOiBcIm9yaWdpbmFsXCIsXG4gICAgXCJ0YXJnZXRcIjogXCJzdW1tYXJ5XCIsXG4gICAgXCJ3b3JkX2NvdW50XCI6IDc1LFxuICAgIFwibGFuZ3VhZ2VcIjogXCJmclwiXG4gIH1cbn0ifX1dfQ==
+  recorded_at: Mon, 01 Sep 2025 18:58:59 GMT
+- request:
+    method: post
+    uri: https://api.mistral.ai/v1/chat/completions
+    body:
+      encoding: UTF-8
+      string: '{"model":"mistral-small","messages":[{"role":"user","content":"Tu es
+        un assistant spécialisé dans la création de résumés. Tu ne dois pas halluciner
+        et générer un résumé en respectant ces règles strictes :\n1. Longueur maximale
+        : 150 mots\n2. Langue : français (fr)\n3. Conserve les informations essentielles
+        du texte original\n4. Format de réponse obligatoire en JSON :\n{\n  \"content\":
+        {\n    \"source\": \"texte original\",\n    \"target\": \"texte résumé en
+        français\"\n  },\n  \"metadata\": {\n    \"source\": \"original\",\n    \"target\":
+        \"summary\",\n    \"word_count\": 150,\n    \"language\": \"fr\"\n  }\n}\n\nTexte
+        à résumer :\nRuby on Rails est un framework de développement web écrit en
+        Ruby. Il suit le paradigme Modèle-Vue-Contrôleur (MVC) et privilégie la convention
+        plutôt que la configuration. Rails comprend de nombreux outils pour faciliter
+        le développement d''applications web, notamment un ORM appelé Active Record,
+        un système de routage flexible, et des générateurs de code. Le framework a
+        été créé par David Heinemeier Hansson en 2004 et est largement utilisé pour
+        construire des applications web modernes.\n"}]}'
+    headers:
+      Authorization:
+      - Bearer <MISTRAL_API_KEY>
+      Content-Type:
+      - application/json
+      User-Agent:
+      - mistral-translator-gem/0.1.0
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Mon, 01 Sep 2025 18:59:03 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Mistral-Correlation-Id:
+      - '019906a5-97e4-7fd4-80bb-e63d396c18bb'
+      X-Kong-Request-Id:
+      - '019906a5-97e4-7fd4-80bb-e63d396c18bb'
+      X-Envoy-Upstream-Service-Time:
+      - '3355'
+      X-Ratelimit-Limit-Tokens-Minute:
+      - '500000'
+      X-Ratelimit-Remaining-Tokens-Minute:
+      - '496027'
+      X-Ratelimit-Limit-Tokens-Month:
+      - '1000000000'
+      X-Ratelimit-Remaining-Tokens-Month:
+      - '999995932'
+      X-Ratelimit-Tokens-Query-Cost:
+      - '582'
+      X-Ratelimit-Limit-Req-Minute:
+      - '60'
+      X-Ratelimit-Remaining-Req-Minute:
+      - '44'
+      Access-Control-Allow-Origin:
+      - "*"
+      X-Kong-Upstream-Latency:
+      - '3356'
+      X-Kong-Proxy-Latency:
+      - '6'
+      Cf-Cache-Status:
+      - DYNAMIC
+      Set-Cookie:
+      - __cf_bm=oxM5wv7z.HI__sqVHM.3O6Mu43GSJD.89X9Zm2iRnbQ-1756753143-1.0.1.1-AAmGL.ygJ3x7o.0tZhpYlg6TmA6oHyV38x4yXB_1MDiw2Ys0SIkJoXcqhaAPeeMOd3CSqCxYWGo.hyQ_LhQi4HgUZugWIPvDYaEyBMxSZTg;
+        path=/; expires=Mon, 01-Sep-25 19:29:03 GMT; domain=.mistral.ai; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=whSmjY5luNLGHSv0adDzdRrOvy2OgBFEIJyrVQOamrs-1756753143077-0.0.1.1-604800000;
+        path=/; domain=.mistral.ai; HttpOnly; Secure; SameSite=None
+      Strict-Transport-Security:
+      - max-age=15552000; includeSubDomains
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 97870092aab9592b-CDG
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        eyJpZCI6IjljYjg0YTcyNzY1MTQ2YzFiY2I4NWFmMDliZGQzNzc5IiwiY3JlYXRlZCI6MTc1Njc1MzEzOSwibW9kZWwiOiJtaXN0cmFsLXNtYWxsIiwidXNhZ2UiOnsicHJvbXB0X3Rva2VucyI6MzI2LCJ0b3RhbF90b2tlbnMiOjU4MiwiY29tcGxldGlvbl90b2tlbnMiOjI1Nn0sIm9iamVjdCI6ImNoYXQuY29tcGxldGlvbiIsImNob2ljZXMiOlt7ImluZGV4IjowLCJmaW5pc2hfcmVhc29uIjoic3RvcCIsIm1lc3NhZ2UiOnsicm9sZSI6ImFzc2lzdGFudCIsInRvb2xfY2FsbHMiOm51bGwsImNvbnRlbnQiOiJ7XG4gIFwiY29udGVudFwiOiB7XG4gICAgXCJzb3VyY2VcIjogXCJSdWJ5IG9uIFJhaWxzIGlzIGEgd2ViIGRldmVsb3BtZW50IGZyYW1ld29yayB3cml0dGVuIGluIFJ1YnksIGZvbGxvd2luZyB0aGUgTW9kZWwtVmlldy1Db250cm9sbGVyIChNVkMpIHBhcmFkaWdtIGFuZCBmYXZvcmluZyBjb252ZW50aW9uIG92ZXIgY29uZmlndXJhdGlvbi4gUmFpbHMgaW5jbHVkZXMgbWFueSB0b29scyB0byBmYWNpbGl0YXRlIHdlYiBhcHBsaWNhdGlvbnMgZGV2ZWxvcG1lbnQsIHN1Y2ggYXMgYW4gT1JNIGNhbGxlZCBBY3RpdmUgUmVjb3JkLCBhIGZsZXhpYmxlIHJvdXRpbmcgc3lzdGVtLCBhbmQgY29kZSBnZW5lcmF0b3JzLiBJdCB3YXMgY3JlYXRlZCBieSBEYXZpZCBIZWluZW1laWVyIEhhbnNzb24gaW4gMjAwNCBhbmQgaXMgd2lkZWx5IHVzZWQgdG8gYnVpbGQgbW9kZXJuIHdlYiBhcHBsaWNhdGlvbnMuXCIsXG4gICAgXCJ0YXJnZXRcIjogXCJSdWJ5IG9uIFJhaWxzLCBjcsOpw6kgcGFyIERhdmlkIEhlaW5lbWVpZXIgSGFuc3NvbiBlbiAyMDA0LCBlc3QgdW4gZnJhbWV3b3JrIHdlYiDDqWNyaXQgZW4gUnVieS4gSWwgc3VpdCBsZSBtb2TDqGxlIE1WQyBldCBwcml2aWzDqWdpZSBsYSBjb252ZW50aW9uIMOgIGxhIGNvbmZpZ3VyYXRpb24uIElsIGluY2x1dCBkZSBub21icmV1eCBvdXRpbHMgZmFjaWxpdGFudCBsZSBkw6l2ZWxvcHBlbWVudCBkJ2FwcGxpY2F0aW9ucyB3ZWIsIGRvbnQgdW4gT1JNIChBY3RpdmUgUmVjb3JkKSwgdW4gc3lzdMOobWUgZGUgcm91dGFnZSBmbGV4aWJsZSBldCBkZXMgZ8OpbsOpcmF0ZXVycyBkZSBjb2RlLlwiXG4gIH0sXG4gIFwibWV0YWRhdGFcIjoge1xuICAgIFwic291cmNlXCI6IFwib3JpZ2luYWxcIixcbiAgICBcInRhcmdldFwiOiBcInN1bW1hcnlcIixcbiAgICBcIndvcmRfY291bnRcIjogMTE4LFxuICAgIFwibGFuZ3VhZ2VcIjogXCJmclwiXG4gIH1cbn0ifX1dfQ==
+  recorded_at: Mon, 01 Sep 2025 18:59:02 GMT
+recorded_with: VCR 6.3.1

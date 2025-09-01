@@ -17,7 +17,10 @@ module MistralTranslator
           # Extraire le contenu traduit selon différents formats possibles
           translated_text = extract_target_content(translation_data)
 
-          raise EmptyTranslationError if translated_text.nil? || translated_text.empty?
+          # Vérifier si la traduction est vide et lever l'erreur appropriée
+          if translated_text.nil? || translated_text.empty?
+            raise EmptyTranslationError, "Empty translation received from API"
+          end
 
           {
             original: extract_source_content(translation_data),
@@ -25,7 +28,9 @@ module MistralTranslator
             metadata: translation_data["metadata"] || {}
           }
         rescue JSON::ParserError => e
-          raise InvalidResponseError, "Invalid JSON in response: #{raw_content}", e
+          raise InvalidResponseError, "Invalid JSON in response: #{raw_content}"
+        rescue EmptyTranslationError
+          raise # Re-raise EmptyTranslationError
         rescue StandardError => e
           raise InvalidResponseError, "Error processing response: #{e.message}"
         end
@@ -49,7 +54,9 @@ module MistralTranslator
             metadata: summary_data["metadata"] || {}
           }
         rescue JSON::ParserError => e
-          raise InvalidResponseError, "Invalid JSON in summary response: #{raw_content}", e
+          raise InvalidResponseError, "Invalid JSON in summary response: #{raw_content}"
+        rescue EmptyTranslationError
+          raise # Re-raise EmptyTranslationError
         rescue StandardError => e
           raise InvalidResponseError, "Error processing summary response: #{e.message}"
         end
@@ -60,7 +67,7 @@ module MistralTranslator
 
         begin
           json_content = extract_json_from_content(raw_content)
-          return [] unless json_content
+          raise InvalidResponseError, "Invalid JSON in bulk response: #{raw_content}" unless json_content
 
           bulk_data = JSON.parse(json_content)
           translations = bulk_data["translations"]
@@ -75,8 +82,11 @@ module MistralTranslator
             }
           end
         rescue JSON::ParserError => e
-          raise InvalidResponseError, "Invalid JSON in bulk response: #{raw_content}", e
+          raise InvalidResponseError, "Invalid JSON in bulk response: #{raw_content}"
         rescue StandardError => e
+          # Ne pas wrapper l'erreur "No translations array in response"
+          raise e if e.message == "No translations array in response"
+
           raise InvalidResponseError, "Error processing bulk response: #{e.message}"
         end
       end
@@ -97,7 +107,7 @@ module MistralTranslator
           data.dig("target"),
           data.dig("content", "translated"),
           data.dig("translated")
-        ].find(&:present?)
+        ].find { |item| item && !item.to_s.empty? }
       end
 
       def extract_source_content(data)
@@ -108,21 +118,8 @@ module MistralTranslator
           data.dig("source"),
           data.dig("content", "original"),
           data.dig("original")
-        ].find(&:present?)
+        ].find { |item| item && !item.to_s.empty? }
       end
     end
-
-    # Extension pour ajouter la méthode present? si elle n'existe pas
-    module CoreExtensions
-      refine Object do
-        def present?
-          !nil? && !empty?
-        rescue NoMethodError
-          !nil?
-        end
-      end
-    end
-
-    using CoreExtensions
   end
 end
