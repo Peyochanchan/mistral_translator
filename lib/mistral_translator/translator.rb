@@ -32,7 +32,7 @@ module MistralTranslator
 
       target_locales.each_with_index do |target_locale, index|
         # Délai entre les requêtes, mais pas avant la première
-        sleep(DEFAULT_RETRY_DELAY) if index > 0
+        sleep(DEFAULT_RETRY_DELAY) if index.positive?
         results[target_locale] = translate_with_retry(text, source_locale, target_locale)
       end
 
@@ -107,7 +107,7 @@ module MistralTranslator
       results = {}
 
       texts.each_slice(10).with_index do |batch, batch_index|
-        sleep(DEFAULT_RETRY_DELAY) if batch_index > 0 # Délai entre les batches
+        sleep(DEFAULT_RETRY_DELAY) if batch_index.positive? # Délai entre les batches
 
         batch_results = translate_small_batch(batch, source_locale, target_locale)
 

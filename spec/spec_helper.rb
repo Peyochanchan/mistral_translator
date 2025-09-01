@@ -15,7 +15,7 @@ VCR.configure do |config|
   }
 
   # Masquer les clés API dans les enregistrements
-  config.filter_sensitive_data("<MISTRAL_API_KEY>") { ENV["MISTRAL_API_KEY"] }
+  config.filter_sensitive_data("<MISTRAL_API_KEY>") { ENV.fetch("MISTRAL_API_KEY", nil) }
   config.filter_sensitive_data("<MISTRAL_API_KEY>") do |interaction|
     auth_header = interaction.request.headers["Authorization"]&.first
     auth_header.split(" ", 2).last if auth_header&.start_with?("Bearer ")
@@ -34,7 +34,7 @@ RSpec.configure do |config|
   end
 
   # Configuration WebMock
-  config.before(:each) do
+  config.before do
     WebMock.reset!
     MistralTranslator.reset_configuration!
 

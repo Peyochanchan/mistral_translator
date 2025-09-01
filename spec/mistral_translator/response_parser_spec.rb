@@ -5,13 +5,13 @@ RSpec.describe MistralTranslator::ResponseParser do
     context "with valid JSON response" do
       let(:valid_json) do
         {
-          "content": {
-            "source": "Hello",
-            "target": "Bonjour"
+          content: {
+            source: "Hello",
+            target: "Bonjour"
           },
-          "metadata": {
-            "source": "en",
-            "target": "fr"
+          metadata: {
+            source: "en",
+            target: "fr"
           }
         }.to_json
       end
@@ -41,9 +41,9 @@ RSpec.describe MistralTranslator::ResponseParser do
     context "with alternative JSON formats" do
       it "handles translation.target format" do
         alt_json = {
-          "translation": {
-            "source": "Hello",
-            "target": "Bonjour"
+          translation: {
+            source: "Hello",
+            target: "Bonjour"
           }
         }.to_json
 
@@ -54,8 +54,8 @@ RSpec.describe MistralTranslator::ResponseParser do
 
       it "handles direct target format" do
         simple_json = {
-          "target": "Bonjour",
-          "source": "Hello"
+          target: "Bonjour",
+          source: "Hello"
         }.to_json
 
         result = described_class.parse_translation_response(simple_json)
@@ -65,9 +65,9 @@ RSpec.describe MistralTranslator::ResponseParser do
 
       it "handles translated format" do
         translated_json = {
-          "content": {
-            "original": "Hello",
-            "translated": "Bonjour"
+          content: {
+            original: "Hello",
+            translated: "Bonjour"
           }
         }.to_json
 
@@ -96,9 +96,9 @@ RSpec.describe MistralTranslator::ResponseParser do
 
       it "raises EmptyTranslationError for empty target" do
         empty_json = {
-          "content": {
-            "source": "Hello",
-            "target": ""
+          content: {
+            source: "Hello",
+            target: ""
           }
         }.to_json
 
@@ -109,9 +109,9 @@ RSpec.describe MistralTranslator::ResponseParser do
 
       it "raises EmptyTranslationError for nil target" do
         nil_json = {
-          "content": {
-            "source": "Hello",
-            "target": nil
+          content: {
+            source: "Hello",
+            target: nil
           }
         }.to_json
 
@@ -125,13 +125,13 @@ RSpec.describe MistralTranslator::ResponseParser do
   describe ".parse_summary_response" do
     let(:valid_summary_json) do
       {
-        "content": {
-          "source": "Very long text that needs to be summarized...",
-          "target": "Short summary"
+        content: {
+          source: "Very long text that needs to be summarized...",
+          target: "Short summary"
         },
-        "metadata": {
-          "max_words": 50,
-          "language": "fr"
+        metadata: {
+          max_words: 50,
+          language: "fr"
         }
       }.to_json
     end
@@ -151,9 +151,9 @@ RSpec.describe MistralTranslator::ResponseParser do
 
     it "handles empty summary" do
       empty_summary = {
-        "content": {
-          "source": "Text",
-          "target": ""
+        content: {
+          source: "Text",
+          target: ""
         }
       }.to_json
 
@@ -172,22 +172,22 @@ RSpec.describe MistralTranslator::ResponseParser do
   describe ".parse_bulk_translation_response" do
     let(:valid_bulk_json) do
       {
-        "translations": [
+        translations: [
           {
-            "index": 1,
-            "source": "Hello",
-            "target": "Bonjour"
+            index: 1,
+            source: "Hello",
+            target: "Bonjour"
           },
           {
-            "index": 2,
-            "source": "Goodbye",
-            "target": "Au revoir"
+            index: 2,
+            source: "Goodbye",
+            target: "Au revoir"
           }
         ],
-        "metadata": {
-          "source_language": "en",
-          "target_language": "fr",
-          "count": 2
+        metadata: {
+          source_language: "en",
+          target_language: "fr",
+          count: 2
         }
       }.to_json
     end
@@ -211,8 +211,8 @@ RSpec.describe MistralTranslator::ResponseParser do
 
     it "raises InvalidResponseError when no translations array" do
       invalid_json = {
-        "content": {
-          "target": "Something"
+        content: {
+          target: "Something"
         }
       }.to_json
 

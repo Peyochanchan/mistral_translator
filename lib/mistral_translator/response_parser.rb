@@ -27,7 +27,7 @@ module MistralTranslator
             translated: translated_text,
             metadata: translation_data["metadata"] || {}
           }
-        rescue JSON::ParserError => e
+        rescue JSON::ParserError
           raise InvalidResponseError, "Invalid JSON in response: #{raw_content}"
         rescue EmptyTranslationError
           raise # Re-raise EmptyTranslationError
@@ -53,7 +53,7 @@ module MistralTranslator
             summary: summary_text,
             metadata: summary_data["metadata"] || {}
           }
-        rescue JSON::ParserError => e
+        rescue JSON::ParserError
           raise InvalidResponseError, "Invalid JSON in summary response: #{raw_content}"
         rescue EmptyTranslationError
           raise # Re-raise EmptyTranslationError
@@ -81,7 +81,7 @@ module MistralTranslator
               translated: translation["target"]
             }
           end
-        rescue JSON::ParserError => e
+        rescue JSON::ParserError
           raise InvalidResponseError, "Invalid JSON in bulk response: #{raw_content}"
         rescue StandardError => e
           # Ne pas wrapper l'erreur "No translations array in response"
@@ -104,9 +104,9 @@ module MistralTranslator
         [
           data.dig("content", "target"),
           data.dig("translation", "target"),
-          data.dig("target"),
+          data["target"],
           data.dig("content", "translated"),
-          data.dig("translated")
+          data["translated"]
         ].find { |item| item && !item.to_s.empty? }
       end
 
@@ -115,9 +115,9 @@ module MistralTranslator
         [
           data.dig("content", "source"),
           data.dig("translation", "source"),
-          data.dig("source"),
+          data["source"],
           data.dig("content", "original"),
-          data.dig("original")
+          data["original"]
         ].find { |item| item && !item.to_s.empty? }
       end
     end

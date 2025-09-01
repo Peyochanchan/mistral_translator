@@ -70,12 +70,10 @@ module MistralTranslator
       log_request_response(request_body, response)
 
       response
-    rescue Net::ReadTimeout => e
+    rescue Net::ReadTimeout, Timeout::Error => e
       raise ApiError, "Request timeout: #{e.message}"
     rescue Net::HTTPError => e
       raise ApiError, "HTTP error: #{e.message}"
-    rescue Timeout::Error => e
-      raise ApiError, "Request timeout: #{e.message}"
     end
 
     def build_request_body(prompt, max_tokens, temperature)
@@ -134,7 +132,7 @@ module MistralTranslator
       make_request_with_retry(prompt, max_tokens, temperature, attempt + 1)
     end
 
-    def log_request_response(request_body, response)
+    def log_request_response(_request_body, response)
       # Log seulement si mode verbose activé
       Logger.debug_if_verbose("Request sent to API", sensitive: true)
       Logger.debug_if_verbose("Response received: #{response.code}", sensitive: false)
