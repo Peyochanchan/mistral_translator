@@ -1,62 +1,36 @@
 # frozen_string_literal: true
 
+require_relative "logger"
+
 module MistralTranslator
-  class PromptBuilder
+  module PromptBuilder
     class << self
       def translation_prompt(text, source_language, target_language)
         source_name = LocaleHelper.locale_to_language(source_language)
         target_name = LocaleHelper.locale_to_language(target_language)
 
-        log_prompt_creation("translation", target_language)
-
         <<~PROMPT
-          Tu es un traducteur professionnel. Tu ne dois pas halluciner et uniquement traduire le texte suivant en respectant ces règles strictes :
-          1. Langue source, locale : #{source_name} (#{source_language})
-          2. Langue cible, locale : #{target_name} (#{target_language})
-          3. IMPORTANT : Le champ "target" DOIT contenir la traduction en #{target_name}, PAS le texte original
-          4. Conserve le style, le ton et le format du texte original
-          5. Format de réponse obligatoire en JSON :
+          Tu es un traducteur professionnel. Traduis le texte suivant de #{source_name} vers #{target_name}.
+
+          RÈGLES :
+          - Traduis fidèlement sans ajouter d'informations
+          - Conserve le style, ton et format original
+          - Réponds UNIQUEMENT en JSON valide
+
+          FORMAT OBLIGATOIRE :
           {
             "content": {
               "source": "texte original",
-              "target": "texte traduit"
+              "target": "texte traduit en #{target_name}"
             },
             "metadata": {
-              "source": "#{source_language}",
-              "target": "#{target_language}"
+              "source_language": "#{source_language}",
+              "target_language": "#{target_language}",
+              "operation": "translation"
             }
           }
 
-          Texte à traduire :
-          #{text}
-        PROMPT
-      end
-
-      def summary_prompt(text, max_words, target_language = "fr")
-        language_name = LocaleHelper.locale_to_language(target_language)
-
-        log_prompt_creation("summary", target_language)
-
-        <<~PROMPT
-          Tu es un assistant spécialisé dans la création de résumés. Tu ne dois pas halluciner et générer un résumé en respectant ces règles strictes :
-          1. Longueur maximale : #{max_words} mots
-          2. Langue : #{language_name} (#{target_language})
-          3. Conserve les informations essentielles du texte original
-          4. Format de réponse obligatoire en JSON :
-          {
-            "content": {
-              "source": "texte original",
-              "target": "texte résumé en #{language_name}"
-            },
-            "metadata": {
-              "source": "original",
-              "target": "summary",
-              "word_count": #{max_words},
-              "language": "#{target_language}"
-            }
-          }
-
-          Texte à résumer :
+          TEXTE À TRADUIRE :
           #{text}
         PROMPT
       end
@@ -65,16 +39,15 @@ module MistralTranslator
         source_name = LocaleHelper.locale_to_language(source_language)
         target_name = LocaleHelper.locale_to_language(target_language)
 
-        log_prompt_creation("bulk_translation", target_language)
-
-        # Formatage des textes avec index
-        indexed_texts = texts.each_with_index.map { |text, index| "#{index + 1}. #{text}" }.join("\n")
-
         <<~PROMPT
-          Tu es un traducteur professionnel. Traduis chacun des textes suivants de #{source_name} vers #{target_name}.
-          Conserve le style, le ton et le format de chaque texte original.
+          Tu es un traducteur professionnel. Traduis les textes suivants de #{source_name} vers #{target_name}.
 
-          Format de réponse obligatoire en JSON :
+          RÈGLES :
+          - Traduis fidèlement chaque texte sans ajouter d'informations
+          - Conserve le style, ton et format originaux
+          - Réponds UNIQUEMENT en JSON valide
+
+          FORMAT OBLIGATOIRE :
           {
             "translations": [
               {
@@ -84,31 +57,161 @@ module MistralTranslator
               },
               {
                 "index": 2,
-                "source": "texte original 2",#{" "}
+                "source": "texte original 2",
                 "target": "texte traduit 2"
               }
             ],
             "metadata": {
               "source_language": "#{source_language}",
               "target_language": "#{target_language}",
-              "count": #{texts.length}
+              "count": #{texts.length},
+              "operation": "bulk_translation"
             }
           }
 
-          Textes à traduire :
-          #{indexed_texts}
+          TEXTES À TRADUIRE :
+          #{texts.map.with_index { |text, i| "#{i + 1}. #{text}" }.join("\n")}
+        PROMPT
+      end
+
+      def summary_prompt(text, max_words, target_language = "fr")
+        target_name = LocaleHelper.locale_to_language(target_language)
+
+        <<~PROMPT
+          Tu es un rédacteur professionnel. Résume le texte suivant en #{target_name}.
+
+          RÈGLES :
+          - Résume fidèlement sans ajouter d'informations
+          - Maximum #{max_words} mots
+          - Conserve les informations essentielles
+          - Réponds UNIQUEMENT en JSON valide
+
+          FORMAT OBLIGATOIRE :
+          {
+            "content": {
+              "source": "texte original",
+              "target": "résumé en #{target_name}"
+            },
+            "metadata": {
+              "source_language": "original",
+              "target_language": "#{target_language}",
+              "word_count": #{max_words},
+              "operation": "summarization"
+            }
+          }
+
+          TEXTE À RÉSUMER :
+          #{text}
+        PROMPT
+      end
+
+      def summary_and_translation_prompt(text, source_language, target_language, max_words)
+        source_name = LocaleHelper.locale_to_language(source_language)
+        target_name = LocaleHelper.locale_to_language(target_language)
+
+        <<~PROMPT
+          Tu es un rédacteur professionnel. Résume ET traduis le texte suivant de #{source_name} vers #{target_name}.
+
+          RÈGLES :
+          - Résume fidèlement sans ajouter d'informations
+          - Traduis le résumé en #{target_name}
+          - Maximum #{max_words} mots
+          - Réponds UNIQUEMENT en JSON valide
+
+          FORMAT OBLIGATOIRE :
+          {
+            "content": {
+              "source": "texte original",
+              "target": "résumé traduit en #{target_name}"
+            },
+            "metadata": {
+              "source_language": "#{source_language}",
+              "target_language": "#{target_language}",
+              "word_count": #{max_words},
+              "operation": "summarization_and_translation"
+            }
+          }
+
+          TEXTE À RÉSUMER ET TRADUIRE :
+          #{text}
+        PROMPT
+      end
+
+      def tiered_summary_prompt(text, target_language, short, medium, long)
+        target_name = LocaleHelper.locale_to_language(target_language)
+
+        <<~PROMPT
+          Tu es un rédacteur professionnel. Crée trois résumés du texte suivant en #{target_name}.
+
+          RÈGLES :
+          - Résume fidèlement sans ajouter d'informations
+          - Respecte strictement les longueurs demandées
+          - Réponds UNIQUEMENT en JSON valide
+
+          FORMAT OBLIGATOIRE :
+          {
+            "content": {
+              "source": "texte original",
+              "target": "résumés en #{target_name}"
+            },
+            "metadata": {
+              "source_language": "original",
+              "target_language": "#{target_language}",
+              "summaries": {
+                "short": #{short},
+                "medium": #{medium},
+                "long": #{long}
+              },
+              "operation": "tiered_summarization"
+            }
+          }
+
+          TEXTE À RÉSUMER :
+          #{text}
+        PROMPT
+      end
+
+      def language_detection_prompt(text)
+        <<~PROMPT
+          Tu es un expert en linguistique. Détecte la langue du texte suivant.
+
+          RÈGLES :
+          - Identifie la langue principale
+          - Utilise le code ISO 639-1 (ex: 'fr', 'en', 'es')
+          - Réponds UNIQUEMENT en JSON valide
+
+          FORMAT OBLIGATOIRE :
+          {
+            "content": {
+              "source": "texte analysé",
+              "target": "langue détectée"
+            },
+            "metadata": {
+              "detected_language": "code_iso",
+              "operation": "language_detection"
+            }
+          }
+
+          TEXTE À ANALYSER :
+          #{text}
         PROMPT
       end
 
       private
 
-      def log_prompt_creation(type, language)
-        message = "[MistralTranslator] #{type.capitalize} prompt created for language: #{language}"
+      def log_prompt_generation(prompt_type, source_locale, target_locale)
+        message = "Generated #{prompt_type} prompt for #{source_locale} -> #{target_locale}"
+        Logger.debug_if_verbose(message, sensitive: false)
+      end
+
+      def log_prompt_debug(prompt)
+        return unless ENV["MISTRAL_TRANSLATOR_DEBUG"]
 
         if defined?(Rails) && Rails.respond_to?(:logger)
           Rails.logger.info message
         elsif ENV["MISTRAL_TRANSLATOR_DEBUG"]
-          puts message
+          # Log de debug seulement si mode verbose activé
+          Logger.debug_if_verbose(message, sensitive: false)
         end
       end
     end

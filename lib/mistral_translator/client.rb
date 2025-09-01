@@ -3,6 +3,7 @@
 require "net/http"
 require "json"
 require "uri"
+require_relative "logger"
 
 module MistralTranslator
   class Client
@@ -105,14 +106,21 @@ module MistralTranslator
         # Rate limit sera géré séparément
         nil
       when 400..499
-        raise ApiError, "Client error (#{response.code}): #{response.body}"
+        raise ApiError, "Client error (#{response.code})}"
       when 500..599
-        raise ApiError, "Server error (#{response.code}): #{response.body}"
+        raise ApiError, "Server error (#{response.code})}"
       end
     end
 
     def rate_limit_exceeded?(response)
-      response.code.to_i == 429 || response.body.include?("rate limit exceeded")
+      return true if response.code.to_i == 429
+
+      return false unless response.code.to_i == 200
+
+      body_content = response.body.to_s
+      return false if body_content.length > 1000
+
+      body_content.match?(/rate.?limit|quota.?exceeded/i)
     end
 
     def handle_rate_limit(prompt, max_tokens, temperature, attempt)
@@ -127,20 +135,15 @@ module MistralTranslator
     end
 
     def log_request_response(request_body, response)
-      return unless defined?(Rails) && Rails.respond_to?(:logger)
-
-      Rails.logger.info "[MistralTranslator] Request: #{request_body.to_json}"
-      Rails.logger.info "[MistralTranslator] Response (#{response.code}): #{response.body}"
+      # Log seulement si mode verbose activé
+      Logger.debug_if_verbose("Request sent to API", sensitive: true)
+      Logger.debug_if_verbose("Response received: #{response.code}", sensitive: false)
     end
 
     def log_rate_limit_retry(wait_time, attempt)
-      message = "[MistralTranslator] Rate limit exceeded, retrying in #{wait_time} seconds (attempt #{attempt + 1})"
-
-      if defined?(Rails) && Rails.respond_to?(:logger)
-        Rails.logger.info message
-      else
-        puts message
-      end
+      message = "Rate limit exceeded, retrying in #{wait_time} seconds (attempt #{attempt + 1})"
+      # Log une seule fois par session pour éviter le spam
+      Logger.warn_once(message, key: "rate_limit_retry", sensitive: false, ttl: 60)
     end
   end
 end
