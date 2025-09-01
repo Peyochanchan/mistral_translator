@@ -8,16 +8,17 @@ Gem::Specification.new do |spec|
   spec.authors = ["Peyochanchan"]
   spec.email = ["cameleon24@outlook.fr"]
 
-  spec.summary = "Une gem pour traduire et résumer du texte avec Mistral API"
-  spec.description = "Une gem pour traduire et résumer du texte avec Mistral API"
+  spec.summary = "Gem to translate and summarize text with Mistral API"
+  spec.description = "Allows translating text into different languages and generating summaries using the MistralAI API"
+
   spec.homepage = "https://github.com/Peyochanchan/mistral_translator"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.1.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/Peyochanchan/mistral_translator"
+  # spec.metadata["source_code_uri"] = "https://github.com/Peyochanchan/mistral_translator"
   spec.metadata["changelog_uri"] = "https://github.com/Peyochanchan/mistral_translator/blob/main/CHANGELOG.md"
   spec.metadata["rubygems_mfa_required"] = "true"
 
@@ -27,7 +28,8 @@ Gem::Specification.new do |spec|
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
     ls.readlines("\x0", chomp: true).reject do |f|
       (f == gemspec) ||
-        f.start_with?(*%w[bin/ test/ spec/ features/ .git .github appveyor Gemfile])
+        f.start_with?(*%w[bin/ test/ spec/ features/ .git .github appveyor Gemfile]) ||
+        f.match?(/\.gem$/)
     end
   end
   spec.bindir = "exe"
