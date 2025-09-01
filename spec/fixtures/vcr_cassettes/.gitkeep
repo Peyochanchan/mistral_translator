@@ -1,0 +1,2 @@
+# Ce fichier assure que le dossier vcr_cassettes est inclus dans git
+# Les cassettes VCR seront générées automatiquement lors des tests
