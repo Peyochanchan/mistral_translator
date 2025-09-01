@@ -28,13 +28,13 @@ RSpec.describe MistralTranslator::Summarizer do
   describe "#summarize" do
     let(:summary_response) do
       {
-        "content": {
-          "source": long_text,
-          "target": "This is a short summary"
+        content: {
+          source: long_text,
+          target: "This is a short summary"
         },
-        "metadata": {
-          "max_words": 250,
-          "language": "fr"
+        metadata: {
+          max_words: 250,
+          language: "fr"
         }
       }.to_json
     end
@@ -150,9 +150,9 @@ RSpec.describe MistralTranslator::Summarizer do
   describe "#summarize_and_translate" do
     let(:translated_summary_response) do
       {
-        "content": {
-          "source": long_text,
-          "target": "This is a translated summary"
+        content: {
+          source: long_text,
+          target: "This is a translated summary"
         }
       }.to_json
     end

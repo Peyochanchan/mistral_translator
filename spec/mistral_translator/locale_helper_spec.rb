@@ -108,7 +108,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
 
     it "handles symbols" do
       expect(described_class.normalize_locale(:fr)).to eq("fr")
-      expect(described_class.normalize_locale(:'en-US')).to eq("en")
+      expect(described_class.normalize_locale(:"en-US")).to eq("en")
     end
 
     it "handles edge cases" do

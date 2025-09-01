@@ -18,9 +18,9 @@ RSpec.describe MistralTranslator::Translator do
   describe "#translate" do
     let(:raw_response) do
       {
-        "content": {
-          "source": "Hello",
-          "target": "Bonjour"
+        content: {
+          source: "Hello",
+          target: "Bonjour"
         }
       }.to_json
     end
@@ -155,9 +155,9 @@ RSpec.describe MistralTranslator::Translator do
   describe "#translate_batch" do
     let(:bulk_response) do
       {
-        "translations": [
-          { "index": 1, "source": "Hello", "target": "Bonjour" },
-          { "index": 2, "source": "Goodbye", "target": "Au revoir" }
+        translations: [
+          { index: 1, source: "Hello", target: "Bonjour" },
+          { index: 2, source: "Goodbye", target: "Au revoir" }
         ]
       }.to_json
     end

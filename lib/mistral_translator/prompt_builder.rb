@@ -204,7 +204,7 @@ module MistralTranslator
         Logger.debug_if_verbose(message, sensitive: false)
       end
 
-      def log_prompt_debug(prompt)
+      def log_prompt_debug(_prompt)
         return unless ENV["MISTRAL_TRANSLATOR_DEBUG"]
 
         if defined?(Rails) && Rails.respond_to?(:logger)

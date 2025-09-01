@@ -3,14 +3,14 @@
 require "spec_helper"
 
 RSpec.describe "Mistral API Integration", :vcr do
-  before(:each) do
+  before do
     # Vérifier que la clé API est disponible pour chaque test
     skip "MISTRAL_API_KEY environment variable required for integration tests" unless ENV["MISTRAL_API_KEY"]
 
     # Vérifier que la clé API fonctionne vraiment
     MistralTranslator.reset_configuration!
     MistralTranslator.configure do |config|
-      config.api_key = ENV["MISTRAL_API_KEY"]
+      config.api_key = ENV.fetch("MISTRAL_API_KEY", nil)
       config.retry_delays = [1, 2] # Retry plus rapides pour les tests
     end
 
@@ -19,7 +19,7 @@ RSpec.describe "Mistral API Integration", :vcr do
     skip "API connection failed: #{health[:message]}" unless health[:status] == :ok
   end
 
-  after(:each) do
+  after do
     # Nettoyer la configuration après chaque test
     MistralTranslator.reset_configuration!
   end
@@ -80,12 +80,12 @@ RSpec.describe "Mistral API Integration", :vcr do
            vcr: { cassette_name: "summarization_workflow", allow_unused_http_interactions: true } do
     let(:long_text) do
       "Ruby on Rails est un framework de développement web écrit en Ruby. " \
-      "Il suit le paradigme Modèle-Vue-Contrôleur (MVC) et privilégie la convention " \
-      "plutôt que la configuration. Rails comprend de nombreux outils pour faciliter " \
-      "le développement d'applications web, notamment un ORM appelé Active Record, " \
-      "un système de routage flexible, et des générateurs de code. " \
-      "Le framework a été créé par David Heinemeier Hansson en 2004 et est " \
-      "largement utilisé pour construire des applications web modernes."
+        "Il suit le paradigme Modèle-Vue-Contrôleur (MVC) et privilégie la convention " \
+        "plutôt que la configuration. Rails comprend de nombreux outils pour faciliter " \
+        "le développement d'applications web, notamment un ORM appelé Active Record, " \
+        "un système de routage flexible, et des générateurs de code. " \
+        "Le framework a été créé par David Heinemeier Hansson en 2004 et est " \
+        "largement utilisé pour construire des applications web modernes."
     end
 
     it "summarizes text effectively" do

@@ -2,7 +2,7 @@
 
 # Helper pour configurer VCR dans les tests d'intégration
 module VCRHelper
-  def self.setup_real_api_tests
+  def self.setup_real_api_tests?
     # Ne faire les tests réels que si la clé API est présente
     if ENV["MISTRAL_API_KEY"]
       puts "🔑 Clé API détectée - Tests d'intégration avec vraie API"
@@ -17,7 +17,7 @@ module VCRHelper
     end
   end
 
-  def self.create_vcr_cassette(name, &block)
+  def self.create_vcr_cassette(name)
     VCR.use_cassette(name) do
       yield if block_given?
     end

@@ -17,13 +17,13 @@ module MistralTranslator
 
   class RateLimitError < ApiError
     def initialize(message = "API rate limit exceeded", response = nil, status_code = 429)
-      super(message, response, status_code)
+      super
     end
   end
 
   class AuthenticationError < ApiError
     def initialize(message = "Invalid API key", response = nil, status_code = 401)
-      super(message, response, status_code)
+      super
     end
   end
 
@@ -38,7 +38,7 @@ module MistralTranslator
 
   class EmptyTranslationError < Error
     def initialize(message = "Empty translation received from API")
-      super(message)
+      super
     end
   end
 

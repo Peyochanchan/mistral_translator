@@ -66,7 +66,7 @@ module MistralTranslator
         log_debug("Processing language #{index + 1}/#{target_locales.length}: #{target_locale}")
 
         # Ajouter un délai seulement entre les requêtes (pas avant la première)
-        if index > 0
+        if index.positive?
           log_debug("Adding delay between requests: #{DEFAULT_RETRY_DELAY}s")
           sleep(DEFAULT_RETRY_DELAY)
         end
@@ -180,7 +180,7 @@ module MistralTranslator
     def validate_summarize_inputs!(text, language, max_words)
       raise ArgumentError, "Text cannot be nil or empty" if text.nil? || text.empty?
       raise ArgumentError, "Language cannot be nil" if language.nil?
-      raise ArgumentError, "Max words must be a positive integer" unless max_words.is_a?(Integer) && max_words > 0
+      raise ArgumentError, "Max words must be a positive integer" unless max_words.is_a?(Integer) && max_words.positive?
     end
 
     def validate_summarize_translate_inputs!(text, from, to, max_words)

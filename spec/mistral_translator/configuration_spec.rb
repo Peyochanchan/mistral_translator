@@ -60,53 +60,53 @@ end
 RSpec.describe MistralTranslator do
   describe ".configuration" do
     it "returns a Configuration instance" do
-      expect(MistralTranslator.configuration).to be_a(MistralTranslator::Configuration)
+      expect(described_class.configuration).to be_a(MistralTranslator::Configuration)
     end
 
     it "returns the same instance on multiple calls" do
-      config1 = MistralTranslator.configuration
-      config2 = MistralTranslator.configuration
+      config1 = described_class.configuration
+      config2 = described_class.configuration
       expect(config1).to be(config2)
     end
   end
 
   describe ".configure" do
     it "yields the configuration instance" do
-      expect { |b| MistralTranslator.configure(&b) }.to yield_with_args(MistralTranslator.configuration)
+      expect { |b| described_class.configure(&b) }.to yield_with_args(described_class.configuration)
     end
 
     it "allows setting configuration values" do
-      MistralTranslator.configure do |config|
+      described_class.configure do |config|
         config.api_key = "configured_key"
         config.model = "mistral-large"
       end
 
-      expect(MistralTranslator.configuration.api_key).to eq("configured_key")
-      expect(MistralTranslator.configuration.model).to eq("mistral-large")
+      expect(described_class.configuration.api_key).to eq("configured_key")
+      expect(described_class.configuration.model).to eq("mistral-large")
     end
   end
 
   describe ".reset_configuration!" do
     before do
-      MistralTranslator.configure do |config|
+      described_class.configure do |config|
         config.api_key = "old_key"
         config.model = "mistral-large"
       end
     end
 
     it "resets configuration to defaults" do
-      MistralTranslator.reset_configuration!
+      described_class.reset_configuration!
 
-      config = MistralTranslator.configuration
+      config = described_class.configuration
       expect(config.api_key).to be_nil
       expect(config.model).to eq("mistral-small")
       expect(config.api_url).to eq("https://api.mistral.ai")
     end
 
     it "creates a new configuration instance" do
-      old_config = MistralTranslator.configuration
-      MistralTranslator.reset_configuration!
-      new_config = MistralTranslator.configuration
+      old_config = described_class.configuration
+      described_class.reset_configuration!
+      new_config = described_class.configuration
 
       expect(new_config).not_to be(old_config)
     end
