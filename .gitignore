@@ -36,3 +36,14 @@ rdoc/
 
 # Temporary files
 tmp/
+
+# Secret files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.key
+secrets/
+credentials/
+config/secrets.yml
