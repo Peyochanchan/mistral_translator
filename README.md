@@ -54,8 +54,8 @@ result = MistralTranslator.translate("Bonjour le monde", from: 'fr', to: 'en')
 
 # Vers plusieurs langues
 results = MistralTranslator.translate_to_multiple(
-  "Bonjour le monde", 
-  from: 'fr', 
+  "Bonjour le monde",
+  from: 'fr',
   to: ['en', 'es', 'de']
 )
 # => { 'en' => "Hello world", 'es' => "Hola mundo", 'de' => "Hallo Welt" }
@@ -86,9 +86,9 @@ summary = MistralTranslator.summarize(long_text, language: 'fr', max_words: 100)
 
 # Résumé avec traduction
 summary = MistralTranslator.summarize_and_translate(
-  long_text, 
-  from: 'fr', 
-  to: 'en', 
+  long_text,
+  from: 'fr',
+  to: 'en',
   max_words: 150
 )
 
@@ -97,7 +97,7 @@ summaries = MistralTranslator.summarize_tiered(
   long_text,
   language: 'fr',
   short: 50,
-  medium: 150, 
+  medium: 150,
   long: 300
 )
 # => { short: "...", medium: "...", long: "..." }
@@ -120,6 +120,7 @@ require 'mistral_translator'
 ## Langues supportées
 
 La gem supporte les langues suivantes :
+
 - Français (fr)
 - Anglais (en)
 - Espagnol (es)
@@ -194,11 +195,45 @@ bundle exec rubocop
 ## Contribution
 
 Les contributions sont les bienvenues ! Merci de :
+
 1. Forker le projet
 2. Créer une branche pour votre feature
 3. Commiter vos changements
 4. Pousser vers la branche
 5. Ouvrir une Pull Request
+
+## Tests et développement
+
+### Exécution des tests
+
+```bash
+# Tests avec RSpec
+bundle exec rspec
+
+# Tests unitaires uniquement
+bundle exec rspec spec/mistral_translator/
+
+# Tests d'intégration (nécessite une clé API)
+bundle exec rspec spec/integration/
+```
+
+### Configuration des tests
+
+Les tests d'intégration nécessitent une clé API Mistral :
+
+```bash
+export MISTRAL_API_KEY=votre_clé_api
+# ou
+export MISTRAL_TEST_API_KEY=votre_clé_api
+```
+
+### Nettoyage automatique des cassettes VCR
+
+Par défaut, les cassettes VCR sont automatiquement nettoyées après les tests pour éviter l'accumulation de fichiers obsolètes. Pour désactiver ce comportement :
+
+```bash
+CLEAN_VCR_CASSETTES=false bundle exec rspec
+```
 
 ## Licence
 

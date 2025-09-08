@@ -3,6 +3,13 @@
 RSpec.describe MistralTranslator::Client do
   let(:client) { described_class.new(api_key: "test_api_key") }
   let(:prompt) { "Translate 'Hello' to French" }
+  let(:context) { { from_locale: "en", to_locale: "fr", attempt: 0 } }
+
+  before do
+    # Reset configuration pour les tests
+    MistralTranslator.reset_configuration!
+    MistralTranslator.configure { |c| c.api_key = "test_api_key" }
+  end
 
   describe "#initialize" do
     it "uses provided api_key" do
@@ -41,12 +48,12 @@ RSpec.describe MistralTranslator::Client do
       end
 
       it "returns the content from API response" do
-        result = client.complete(prompt)
+        result = client.complete(prompt, context: context)
         expect(result).to eq('{"content": {"target": "Bonjour"}}')
       end
 
       it "sends correct request headers" do
-        client.complete(prompt)
+        client.complete(prompt, context: context)
 
         expect(WebMock).to have_requested(:post, "https://api.mistral.ai/v1/chat/completions")
           .with(
@@ -59,7 +66,7 @@ RSpec.describe MistralTranslator::Client do
       end
 
       it "sends correct request body" do
-        client.complete(prompt, max_tokens: 100, temperature: 0.7)
+        client.complete(prompt, max_tokens: 100, temperature: 0.7, context: context)
 
         expect(WebMock).to have_requested(:post, "https://api.mistral.ai/v1/chat/completions")
           .with(
@@ -71,13 +78,58 @@ RSpec.describe MistralTranslator::Client do
             }.to_json
           )
       end
+
+      # Nouveaux tests pour les callbacks
+      context "with callbacks enabled" do
+        before do
+          start_callback = double("start_callback")
+          complete_callback = double("complete_callback")
+          allow(start_callback).to receive(:call).with(any_args)
+          allow(complete_callback).to receive(:call).with(any_args)
+
+          MistralTranslator.configure do |config|
+            config.enable_metrics = true
+            config.on_translation_start = start_callback
+            config.on_translation_complete = complete_callback
+          end
+        end
+
+        it "triggers translation start callback" do
+          expect(MistralTranslator.configuration.on_translation_start)
+            .to receive(:call).with("en", "fr", prompt.length, anything)
+
+          client.complete(prompt, context: context)
+        end
+
+        it "triggers translation complete callback" do
+          expect(MistralTranslator.configuration.on_translation_complete)
+            .to receive(:call).with("en", "fr", prompt.length, anything, anything)
+
+          client.complete(prompt, context: context)
+        end
+      end
+
+      context "without context" do
+        it "handles missing context gracefully" do
+          expect { client.complete(prompt) }.not_to raise_error
+        end
+      end
     end
 
     context "with API errors" do
+      before do
+        error_callback = double("error_callback")
+        allow(error_callback).to receive(:call).with(any_args)
+
+        MistralTranslator.configure do |config|
+          config.on_translation_error = error_callback
+        end
+      end
+
       it "raises AuthenticationError for 401 status" do
         stub_mistral_api(response_body: invalid_api_key_response, status: 401)
 
-        expect { client.complete(prompt) }.to raise_error(
+        expect { client.complete(prompt, context: context) }.to raise_error(
           MistralTranslator::AuthenticationError,
           "Invalid API key"
         )
@@ -89,7 +141,7 @@ RSpec.describe MistralTranslator::Client do
           status: 500
         )
 
-        expect { client.complete(prompt) }.to raise_error(
+        expect { client.complete(prompt, context: context) }.to raise_error(
           MistralTranslator::ApiError,
           /Server error \(500\)/
         )
@@ -100,16 +152,27 @@ RSpec.describe MistralTranslator::Client do
           response_body: { choices: [{ message: { content: nil } }] }
         )
 
-        expect { client.complete(prompt) }.to raise_error(
+        expect { client.complete(prompt, context: context) }.to raise_error(
           MistralTranslator::InvalidResponseError,
           "No content in API response"
+        )
+      end
+
+      it "triggers error callback on JSON parsing error" do
+        stub_mistral_api(response_body: "invalid json")
+
+        expect(MistralTranslator.configuration.on_translation_error)
+          .to receive(:call).with("en", "fr", anything, 0, anything)
+
+        expect { client.complete(prompt, context: context) }.to raise_error(
+          MistralTranslator::InvalidResponseError
         )
       end
 
       it "raises InvalidResponseError for malformed JSON" do
         stub_mistral_api(response_body: "invalid json")
 
-        expect { client.complete(prompt) }.to raise_error(
+        expect { client.complete(prompt, context: context) }.to raise_error(
           MistralTranslator::InvalidResponseError,
           /Invalid JSON in API response/
         )
@@ -117,6 +180,15 @@ RSpec.describe MistralTranslator::Client do
     end
 
     context "with rate limiting" do
+      before do
+        rate_limit_callback = double("rate_limit_callback")
+        allow(rate_limit_callback).to receive(:call).with(any_args)
+
+        MistralTranslator.configure do |config|
+          config.on_rate_limit = rate_limit_callback
+        end
+      end
+
       it "retries on rate limit and succeeds" do
         # Premier appel : rate limit
         stub_request(:post, "https://api.mistral.ai/v1/chat/completions")
@@ -124,18 +196,32 @@ RSpec.describe MistralTranslator::Client do
           .then
           .to_return(status: 200, body: valid_response_body.to_json)
 
-        result = client.complete(prompt)
+        expect(MistralTranslator.configuration.on_rate_limit)
+          .to receive(:call).with("en", "fr", 2, 1, anything)
+
+        result = client.complete(prompt, context: context)
         expect(result).to eq('{"content": {"target": "Bonjour"}}')
         expect(WebMock).to have_requested(:post, "https://api.mistral.ai/v1/chat/completions").twice
       end
 
       it "raises RateLimitError after max retries" do
+        # Configuration temporaire avec moins de retries pour accélérer le test
+        original_retry_delays = MistralTranslator.configuration.retry_delays
+        MistralTranslator.configure { |c| c.retry_delays = [0.01, 0.01] } # 2 retries rapides
+
         stub_mistral_api(response_body: rate_limit_response, status: 429)
 
-        expect { client.complete(prompt) }.to raise_error(
+        # Le callback rate_limit sera appelé plusieurs fois pendant les retries
+        expect(MistralTranslator.configuration.on_rate_limit)
+          .to receive(:call).with(any_args).at_least(:once)
+
+        expect { client.complete(prompt, context: context) }.to raise_error(
           MistralTranslator::RateLimitError,
           /API rate limit exceeded after \d+ retries/
         )
+
+        # Restaurer la configuration originale
+        MistralTranslator.configure { |c| c.retry_delays = original_retry_delays }
       end
     end
 
@@ -144,7 +230,7 @@ RSpec.describe MistralTranslator::Client do
         stub_request(:post, "https://api.mistral.ai/v1/chat/completions")
           .to_timeout
 
-        expect { client.complete(prompt) }.to raise_error(
+        expect { client.complete(prompt, context: context) }.to raise_error(
           MistralTranslator::ApiError,
           /Request timeout/
         )
@@ -165,20 +251,116 @@ RSpec.describe MistralTranslator::Client do
       }
     end
 
+    before do
+      start_callback = double("start_callback")
+      complete_callback = double("complete_callback")
+      error_callback = double("error_callback")
+      allow(start_callback).to receive(:call).with(any_args)
+      allow(complete_callback).to receive(:call).with(any_args)
+      allow(error_callback).to receive(:call).with(any_args)
+
+      MistralTranslator.configure do |config|
+        config.enable_metrics = true
+        config.on_translation_start = start_callback
+        config.on_translation_complete = complete_callback
+        config.on_translation_error = error_callback
+      end
+    end
+
     it "returns raw content without parsing" do
       stub_mistral_api(response_body: valid_response_body)
 
-      result = client.chat(prompt)
+      expect(MistralTranslator.configuration.on_translation_start)
+        .to receive(:call).with("en", "fr", prompt.length, anything)
+      expect(MistralTranslator.configuration.on_translation_complete)
+        .to receive(:call).with("en", "fr", prompt.length, anything, anything)
+
+      result = client.chat(prompt, context: context)
       expect(result).to eq("Simple response without JSON")
     end
 
-    it "raises InvalidResponseError for malformed JSON response" do
+    it "triggers error callback for malformed JSON response" do
       stub_mistral_api(response_body: "invalid json")
 
-      expect { client.chat(prompt) }.to raise_error(
+      expect(MistralTranslator.configuration.on_translation_error)
+        .to receive(:call).with("en", "fr", anything, 0, anything)
+
+      expect { client.chat(prompt, context: context) }.to raise_error(
         MistralTranslator::InvalidResponseError,
         /JSON parse error/
       )
+    end
+  end
+
+  # Nouveaux tests pour la fonctionnalité batch
+  describe "#translate_batch" do
+    let(:batch_requests) do
+      [
+        { prompt: "Translate 'Hello'", from: "en", to: "fr", index: 0, original_text: "Hello" },
+        { prompt: "Translate 'Goodbye'", from: "en", to: "fr", index: 1, original_text: "Goodbye" }
+      ]
+    end
+
+    let(:successful_response) { '{"content": {"target": "Bonjour"}}' }
+
+    before do
+      batch_callback = double("batch_callback")
+      allow(batch_callback).to receive(:call).with(any_args)
+
+      MistralTranslator.configure do |config|
+        config.on_batch_complete = batch_callback
+      end
+
+      allow(client).to receive(:complete).and_return(successful_response)
+    end
+
+    it "processes batch requests" do
+      result = client.translate_batch(batch_requests, batch_size: 2)
+
+      expect(result).to be_an(Array)
+      expect(result.length).to eq(2)
+      expect(result.first[:success]).to be true
+      expect(result.first[:result]).to eq(successful_response)
+    end
+
+    it "triggers batch complete callback" do
+      expect(MistralTranslator.configuration.on_batch_complete)
+        .to receive(:call).with(2, anything, 2, 0)
+
+      client.translate_batch(batch_requests, batch_size: 2)
+    end
+
+    it "handles errors in batch" do
+      allow(client).to receive(:complete)
+        .and_raise(MistralTranslator::ApiError, "API Error")
+
+      result = client.translate_batch(batch_requests, batch_size: 2)
+
+      expect(result.first[:success]).to be false
+      expect(result.first[:error]).to eq("API Error")
+    end
+
+    it "splits large batches correctly" do
+      large_batch = Array.new(12) do |i|
+        { prompt: "Translate #{i}", from: "en", to: "fr", index: i, original_text: "Text #{i}" }
+      end
+
+      # Avec batch_size=5, on s'attend à 3 batches (5, 5, 2)
+      expect(client).to receive(:sleep).at_least(:once) # Entre les batches
+
+      result = client.translate_batch(large_batch, batch_size: 5)
+      expect(result.length).to eq(12)
+    end
+
+    it "adds delays between batches but not within batches" do
+      large_batch = Array.new(6) do |i|
+        { prompt: "Translate #{i}", from: "en", to: "fr", index: i, original_text: "Text #{i}" }
+      end
+
+      # Avec batch_size=3, on s'attend à 2 batches, donc 1 sleep
+      expect(client).to receive(:sleep).once.with(2)
+
+      client.translate_batch(large_batch, batch_size: 3)
     end
   end
 
@@ -229,6 +411,44 @@ RSpec.describe MistralTranslator::Client do
       it "returns false for normal responses" do
         response = double(code: "200", body: "normal response")
         expect(client.send(:rate_limit_exceeded?, response)).to be false
+      end
+    end
+
+    describe "#process_batch_slice" do
+      let(:batch_slice) do
+        [
+          { prompt: "Hello", from: "en", to: "fr" },
+          { prompt: "Goodbye", from: "en", to: "fr" }
+        ]
+      end
+
+      it "processes successful requests" do
+        allow(client).to receive(:complete).and_return("Bonjour", "Au revoir")
+
+        result = client.send(:process_batch_slice, batch_slice)
+
+        expect(result[:success_count]).to eq(2)
+        expect(result[:error_count]).to eq(0)
+        expect(result[:results].first[:success]).to be true
+        expect(result[:results].first[:result]).to eq("Bonjour")
+      end
+
+      it "handles mixed success and errors" do
+        call_count = 0
+        allow(client).to receive(:complete) do |*args|
+          call_count += 1
+          raise MistralTranslator::ApiError, "Error" unless call_count == 1
+
+          "Bonjour"
+        end
+
+        result = client.send(:process_batch_slice, batch_slice)
+
+        expect(result[:success_count]).to eq(1)
+        expect(result[:error_count]).to eq(1)
+        expect(result[:results].first[:success]).to be true
+        expect(result[:results].last[:success]).to be false
+        expect(result[:results].last[:error]).to eq("Error")
       end
     end
   end

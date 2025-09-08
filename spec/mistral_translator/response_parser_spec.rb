@@ -250,9 +250,98 @@ RSpec.describe MistralTranslator::ResponseParser do
         expect(json).to eq(complex_json)
       end
 
+      it "extracts JSON with escaped quotes in HTML content" do
+        complex_json = '{
+          "content": {
+            "source": "<div class=\"trix-content\"><div>Una asociación para promover la alfabetización digital y garantizar el acceso equitativo a la tecnología para todas las comunidades. <strong>Fomentamos la innovación para empoderar a una sociedad global conectada.</strong></div></div>",
+            "target": "<div class=\"trix-content\"><div>A association to promote digital literacy and ensure equitable access to technology for all communities. <strong>We foster innovation to empower a connected global society.</strong></div></div>"
+          },
+          "metadata": {
+            "source_language": "es",
+            "target_language": "en",
+            "operation": "translation"
+          }
+        }'
+        content = "Response: #{complex_json} End"
+        json = described_class.send(:extract_json_from_content, content)
+        expect(json).to eq(complex_json)
+      end
+
       it "returns nil when no JSON found" do
         json = described_class.send(:extract_json_from_content, "No JSON here")
         expect(json).to be_nil
+      end
+    end
+
+    context "with real-world problematic JSON" do
+      it "parses the exact JSON from the error case" do
+        problematic_json = '{
+  "content": {
+    "source": "<div class=\\"trix-content\\"><div>Una asociación para promover la alfabetización digital y garantizar el acceso equitativo a la tecnología para todas las comunidades. <strong>Fomentamos la innovación para empoderar a una sociedad global conectada.</strong></div></div>",
+    "target": "<div class=\\"trix-content\\"><div>A association to promote digital literacy and ensure equitable access to technology for all communities. <strong>We foster innovation to empower a connected global society.</strong></div></div>"
+  },
+  "metadata": {
+    "source_language": "es",
+    "target_language": "en",
+    "operation": "translation"
+  }
+}'
+
+        result = described_class.parse_translation_response(problematic_json)
+
+        expect(result).to be_a(Hash)
+        expect(result[:translated]).to include("A association to promote digital literacy")
+        expect(result[:original]).to include("Una asociación para promover la alfabetización digital")
+        expect(result[:metadata]["source_language"]).to eq("es")
+        expect(result[:metadata]["target_language"]).to eq("en")
+      end
+
+      it "handles JSON with complex nested quotes and HTML" do
+        complex_json = '{
+  "content": {
+    "source": "<div class=\\"trix-content\\"><div>Text with \\"quotes\\" and <strong>HTML</strong></div></div>",
+    "target": "<div class=\\"trix-content\\"><div>Texte avec \\"guillemets\\" et <strong>HTML</strong></div></div>"
+  },
+  "metadata": {
+    "source_language": "en",
+    "target_language": "fr"
+  }
+}'
+
+        result = described_class.parse_translation_response(complex_json)
+
+        expect(result).to be_a(Hash)
+        expect(result[:translated]).to include("Texte avec")
+        expect(result[:original]).to include("Text with")
+      end
+
+      it "provides secure error information when JSON parsing fails" do
+        invalid_json = '{"invalid": json, "missing": quotes}'
+
+        expect { described_class.parse_translation_response(invalid_json) }.to raise_error(
+          MistralTranslator::InvalidResponseError,
+          /Invalid JSON in response.*Details:/
+        )
+      end
+
+      it "rejects content that is too large" do
+        large_content = "x" * 1_000_001 # Plus de 1MB
+
+        expect { described_class.parse_translation_response(large_content) }.to raise_error(
+          MistralTranslator::InvalidResponseError,
+          /Response content too large/
+        )
+      end
+
+      it "handles malformed JSON that could cause infinite loops" do
+        # Créer un JSON qui passera le premier parsing mais causera des problèmes dans find_json_in_text
+        # En entourant le JSON malformé de texte pour forcer l'utilisation de find_json_in_text
+        malformed_json = "Some text before {#{"{" * 50_000}#{"}" * 50_000}} some text after"
+
+        expect { described_class.parse_translation_response(malformed_json) }.to raise_error(
+          MistralTranslator::InvalidResponseError,
+          /JSON parsing exceeded maximum iterations/
+        )
       end
     end
 

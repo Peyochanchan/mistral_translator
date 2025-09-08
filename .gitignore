@@ -47,3 +47,9 @@ tmp/
 secrets/
 credentials/
 config/secrets.yml
+
+# VCR cassettes (générées automatiquement)
+spec/fixtures/vcr_cassettes/*.yml
+
+# Scripts de test (contiennent des clés API et sont locaux)
+scripts/

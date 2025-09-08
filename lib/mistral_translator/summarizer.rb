@@ -50,6 +50,10 @@ module MistralTranslator
       raw_response = @client.complete(prompt)
 
       result = ResponseParser.parse_summary_response(raw_response)
+      if result.nil? || result[:summary].nil? || result[:summary].empty?
+        raise EmptyTranslationError, "Empty summary received from summarize_and_translate"
+      end
+
       result[:summary]
     end
 
