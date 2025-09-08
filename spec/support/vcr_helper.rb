@@ -4,13 +4,13 @@
 module VCRHelper
   def self.setup_real_api_tests?
     if ENV["MISTRAL_API_KEY"]
-      puts "🔑 Clé API détectée - Tests d'intégration avec vraie API"
+      # puts "🔑 Clé API détectée - Tests d'intégration avec vraie API"
       MistralTranslator.configure do |config|
         config.api_key = ENV["MISTRAL_API_KEY"]
       end
       true
     else
-      puts "⚠️  Pas de clé API - Tests d'intégration skippés"
+      # puts "⚠️  Pas de clé API - Tests d'intégration skippés"
       puts "   Définissez MISTRAL_API_KEY pour tester avec la vraie API"
       false
     end

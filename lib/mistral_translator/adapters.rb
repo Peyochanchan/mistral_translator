@@ -28,18 +28,18 @@ module MistralTranslator
       # Méthodes utilitaires communes
       def detect_source_locale(field, preferred_locale = nil)
         # Priorité à une locale source fournie
-        return preferred_locale.to_sym if preferred_locale && has_content?(field, preferred_locale)
+        return preferred_locale.to_sym if preferred_locale && content?(field, preferred_locale)
 
         # Chercher quelle locale a du contenu pour ce champ
         available_locales.each do |locale|
-          return locale if has_content?(field, locale)
+          return locale if content?(field, locale)
         end
 
         # Fallback sur la première locale disponible
         available_locales.first
       end
 
-      def has_content?(field, locale)
+      def content?(field, locale)
         value = get_field_value(field, locale)
         return false if value.nil?
 
@@ -249,13 +249,13 @@ module MistralTranslator
     end
 
     # Pour des méthodes custom
-    def self.translate_custom_record(record, fields, get_method:, set_method:, locales_method: nil, source_locale: nil)
+    def self.translate_custom_record(record, fields, get_method:, set_method:, **options)
       adapter = Adapters::CustomAdapter.new(record, {
                                               get_method: get_method,
                                               set_method: set_method,
-                                              locales_method: locales_method
+                                              locales_method: options[:locales_method]
                                             })
-      translate_record(record, fields, adapter: adapter, source_locale: source_locale)
+      translate_record(record, fields, adapter: adapter, source_locale: options[:source_locale])
     end
   end
 end

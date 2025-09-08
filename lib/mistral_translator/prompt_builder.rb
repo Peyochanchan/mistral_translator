@@ -1,17 +1,29 @@
 # frozen_string_literal: true
 
 require_relative "logger"
+require_relative "prompt_helpers"
+require_relative "prompt_metadata_helpers"
 
 module MistralTranslator
   module PromptBuilder
+    extend PromptHelpers::ContextBuilder
+    extend PromptHelpers::HtmlInstructions
+    extend PromptHelpers::FormatInstructions
+    extend PromptMetadataHelpers
+
     class << self
-      def translation_prompt(text, source_language, target_language, context: nil, glossary: nil, preserve_html: false)
+      def translation_prompt(text, source_language, target_language, **options)
         source_name = LocaleHelper.locale_to_language(source_language)
         target_name = LocaleHelper.locale_to_language(target_language)
 
         # Construction du contexte enrichi
-        context_section = build_context_section(context, glossary)
-        html_instruction = preserve_html ? build_html_preservation_instruction : ""
+        context_section = build_context_section(options[:context], options[:glossary])
+        html_instruction = options[:preserve_html] ? build_html_preservation_instruction : ""
+
+        # Extraire les valeurs pour les métadonnées
+        context = options[:context]
+        glossary = options[:glossary]
+        preserve_html = options[:preserve_html]
 
         <<~PROMPT
           Tu es un traducteur professionnel. Traduis le texte suivant de #{source_name} vers #{target_name}.
@@ -39,13 +51,18 @@ module MistralTranslator
         PROMPT
       end
 
-      def bulk_translation_prompt(texts, source_language, target_language, context: nil, glossary: nil,
-                                  preserve_html: false)
+      # rubocop:disable Metrics/MethodLength
+      def bulk_translation_prompt(texts, source_language, target_language, **options)
         source_name = LocaleHelper.locale_to_language(source_language)
         target_name = LocaleHelper.locale_to_language(target_language)
 
-        context_section = build_context_section(context, glossary)
-        html_instruction = preserve_html ? build_html_preservation_instruction : ""
+        context_section = build_context_section(options[:context], options[:glossary])
+        html_instruction = options[:preserve_html] ? build_html_preservation_instruction : ""
+
+        # Extraire les valeurs pour les métadonnées
+        context = options[:context]
+        glossary = options[:glossary]
+        preserve_html = options[:preserve_html]
 
         <<~PROMPT
           Tu es un traducteur professionnel. Traduis les textes suivants de #{source_name} vers #{target_name}.
@@ -82,6 +99,7 @@ module MistralTranslator
           #{texts.map.with_index { |text, i| "#{i + 1}. #{text}" }.join("\n")}
         PROMPT
       end
+      # rubocop:enable Metrics/MethodLength
 
       def summary_prompt(text, max_words, target_language = "fr", context: nil, style: nil)
         target_name = LocaleHelper.locale_to_language(target_language)
@@ -117,12 +135,16 @@ module MistralTranslator
         PROMPT
       end
 
-      def summary_and_translation_prompt(text, source_language, target_language, max_words, context: nil, style: nil)
+      def summary_and_translation_prompt(text, source_language, target_language, max_words, **options)
         source_name = LocaleHelper.locale_to_language(source_language)
         target_name = LocaleHelper.locale_to_language(target_language)
 
-        context_section = build_summary_context_section(context, style)
-        style_instruction = build_style_instruction(style)
+        context_section = build_summary_context_section(options[:context], options[:style])
+        style_instruction = build_style_instruction(options[:style])
+
+        # Extraire les valeurs pour les métadonnées
+        context = options[:context]
+        style = options[:style]
 
         <<~PROMPT
           Tu es un rédacteur professionnel. Résume ET traduis le texte suivant de #{source_name} vers #{target_name}.
@@ -152,11 +174,15 @@ module MistralTranslator
         PROMPT
       end
 
-      def tiered_summary_prompt(text, target_language, short, medium, long, context: nil, style: nil)
+      def tiered_summary_prompt(text, target_language, **options)
         target_name = LocaleHelper.locale_to_language(target_language)
 
-        context_section = build_summary_context_section(context, style)
-        style_instruction = build_style_instruction(style)
+        context_section = build_summary_context_section(options[:context], options[:style])
+        style_instruction = build_style_instruction(options[:style])
+
+        # Extraire les valeurs pour les métadonnées
+        context = options[:context]
+        style = options[:style]
 
         <<~PROMPT
           Tu es un rédacteur professionnel. Crée trois résumés du texte suivant en #{target_name}.
@@ -164,7 +190,7 @@ module MistralTranslator
           RÈGLES :
           - Résume fidèlement sans ajouter d'informations
           - Respecte strictement les longueurs demandées
-          - Court: #{short} mots, Moyen: #{medium} mots, Long: #{long} mots#{style_instruction}
+          - Court: #{options[:short]} mots, Moyen: #{options[:medium]} mots, Long: #{options[:long]} mots#{style_instruction}
           - Réponds UNIQUEMENT en JSON valide
 
           FORMAT OBLIGATOIRE :
@@ -172,18 +198,18 @@ module MistralTranslator
             "content": {
               "source": "texte original",
               "summaries": {
-                "short": "résumé court (#{short} mots)",
-                "medium": "résumé moyen (#{medium} mots)",#{" "}
-                "long": "résumé long (#{long} mots)"
+                "short": "résumé court (#{options[:short]} mots)",
+                "medium": "résumé moyen (#{options[:medium]} mots)",
+                "long": "résumé long (#{options[:long]} mots)"
               }
             },
             "metadata": {
               "source_language": "original",
               "target_language": "#{target_language}",
               "summaries": {
-                "short": #{short},
-                "medium": #{medium},
-                "long": #{long}
+                "short": #{options[:short]},
+                "medium": #{options[:medium]},
+                "long": #{options[:long]}
               },
               "operation": "tiered_summarization"#{build_summary_metadata_additions(context, style)}
             }
@@ -227,8 +253,8 @@ module MistralTranslator
       end
 
       # Nouveau : Prompt pour traduction avec validation de qualité
-      def translation_with_validation_prompt(text, source_language, target_language, context: nil, glossary: nil)
-        base_prompt = translation_prompt(text, source_language, target_language, context: context, glossary: glossary)
+      def translation_with_validation_prompt(text, source_language, target_language, **)
+        base_prompt = translation_prompt(text, source_language, target_language, **)
 
         base_prompt.sub(
           '"operation": "translation"',
@@ -239,85 +265,6 @@ module MistralTranslator
             "completeness": "vérifié"
           }'
         )
-      end
-
-      private
-
-      def build_context_section(context, glossary)
-        sections = []
-
-        sections << "CONTEXTE : #{context}" if context && !context.to_s.strip.empty?
-
-        if glossary && !glossary.to_s.strip.empty? && glossary.is_a?(Hash) && glossary.any?
-          glossary_text = glossary.map { |key, value| "#{key} → #{value}" }.join(", ")
-          sections << "GLOSSAIRE (à respecter strictement) : #{glossary_text}"
-        end
-
-        sections.any? ? "\n#{sections.join("\n")}\n" : ""
-      end
-
-      def build_summary_context_section(context, style)
-        sections = []
-
-        sections << "CONTEXTE : #{context}" if context && !context.to_s.strip.empty?
-
-        sections << "STYLE REQUIS : #{style}" if style && !style.to_s.strip.empty?
-
-        sections.any? ? "\n#{sections.join("\n")}\n" : ""
-      end
-
-      def build_html_preservation_instruction
-        "\n          - IMPORTANT : Préserve exactement toutes les balises HTML et leur structure"
-      end
-
-      def build_style_instruction(style)
-        return "" unless style && !style.to_s.strip.empty?
-
-        style_rules = {
-          "formal" => "Utilise un style formel et professionnel",
-          "casual" => "Utilise un style décontracté et accessible",
-          "technical" => "Maintiens la précision technique et la terminologie spécialisée",
-          "marketing" => "Adopte un ton engageant et persuasif",
-          "academic" => "Utilise un style académique rigoureux"
-        }
-
-        instruction = style_rules[style.to_s] || "Adopte le style : #{style}"
-        "\n          - STYLE : #{instruction}"
-      end
-
-      def build_metadata_additions(context, glossary, preserve_html)
-        additions = []
-
-        additions << '"has_context": true' if context && !context.to_s.strip.empty?
-        additions << '"has_glossary": true' if glossary && !glossary.to_s.strip.empty? && glossary.any?
-        additions << '"preserve_html": true' if preserve_html
-
-        additions.any? ? ",\n              #{additions.join(",\n              ")}" : ""
-      end
-
-      def build_summary_metadata_additions(context, style)
-        additions = []
-
-        additions << '"has_context": true' if context && !context.to_s.strip.empty?
-        additions << %("style": "#{style}") if style && !style.to_s.strip.empty?
-
-        additions.any? ? ",\n              #{additions.join(",\n              ")}" : ""
-      end
-
-      def log_prompt_generation(prompt_type, source_locale, target_locale)
-        message = "Generated #{prompt_type} prompt for #{source_locale} -> #{target_locale}"
-        Logger.debug_if_verbose(message, sensitive: false)
-      end
-
-      def log_prompt_debug(_prompt)
-        return unless ENV["MISTRAL_TRANSLATOR_DEBUG"]
-
-        if defined?(Rails) && Rails.respond_to?(:logger)
-          Rails.logger.info message
-        elsif ENV["MISTRAL_TRANSLATOR_DEBUG"]
-          # Log de debug seulement si mode verbose activé
-          Logger.debug_if_verbose(message, sensitive: false)
-        end
       end
     end
   end

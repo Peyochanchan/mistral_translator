@@ -51,7 +51,18 @@ module MistralTranslator
 
       result = ResponseParser.parse_summary_response(raw_response)
       if result.nil? || result[:summary].nil? || result[:summary].empty?
-        raise EmptyTranslationError, "Empty summary received from summarize_and_translate"
+        # Fallback: si le JSON est manquant ou vide, on tente un résumé simple puis traduction
+        log_error(
+          "Empty or invalid summary response for summarize_and_translate. Using fallback. " \
+          "Raw length: #{raw_response.to_s.length}"
+        )
+        summary_only = summarize(cleaned_text, language: source_locale, max_words: max_words)
+        begin
+          return MistralTranslator.translate(summary_only, from: source_locale, to: target_locale)
+        rescue EmptyTranslationError, InvalidResponseError, RateLimitError => e
+          log_error("Translation fallback failed: #{e.class.name} - returning source summary")
+          return summary_only
+        end
       end
 
       result[:summary]
@@ -99,14 +110,20 @@ module MistralTranslator
 
     private
 
+    # rubocop:disable Metrics/PerceivedComplexity
     def summarize_with_retry(text, target_locale, max_words, attempt = 0)
       log_debug("Summarize attempt #{attempt + 1} for #{target_locale}")
 
       prompt = PromptBuilder.summary_prompt(text, max_words, target_locale)
       raw_response = @client.complete(prompt)
+      response_len = raw_response&.length || 0
 
       result = ResponseParser.parse_summary_response(raw_response)
       if result.nil? || result[:summary].nil? || result[:summary].empty?
+        log_error(
+          "Empty or invalid summary response for #{target_locale}. " \
+          "Raw response length: #{response_len}"
+        )
         raise EmptyTranslationError, "Empty summary received"
       end
 
@@ -127,6 +144,7 @@ module MistralTranslator
       sleep(DEFAULT_RETRY_DELAY)
       retry
     end
+    # rubocop:enable Metrics/PerceivedComplexity
 
     def build_summary_translation_prompt(text, source_locale, target_locale, max_words)
       source_name = LocaleHelper.locale_to_language(source_locale)
@@ -225,6 +243,16 @@ module MistralTranslator
       return unless ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] == "true"
 
       puts "[MistralTranslator] #{message}"
+    end
+
+    def log_error(message)
+      # Utiliser le logger centralisé
+      Logger.warn(message, sensitive: false)
+
+      # Pour les tests, optionnellement afficher en stdout
+      return unless ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] == "true"
+
+      puts "[MistralTranslator] ERROR: #{message}"
     end
   end
 end

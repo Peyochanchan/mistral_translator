@@ -52,7 +52,8 @@ VCR.configure do |config|
     cookies = interaction.response.headers["Set-Cookie"]
     if cookies
       cf_bm = cookies.find { |cookie| cookie.include?("__cf_bm=") }
-      cf_bm&.split("__cf_bm=", 2)&.last&.split(";")&.first
+      cf_bm_value = cf_bm&.split("__cf_bm=", 2)&.last
+      cf_bm_value&.split(";")&.first
     end
   end
 
@@ -125,7 +126,7 @@ RSpec.configure do |config|
   config.before(:suite) do
     if ApiKeyHelper.real_api_available?
       puts "🔑 Real Mistral API available for integration tests"
-      puts "   Using key: #{ApiKeyHelper.test_api_key[0..8]}...#{ApiKeyHelper.test_api_key[-4..-1]}"
+      puts "   Using key: #{ApiKeyHelper.test_api_key[0..8]}...#{ApiKeyHelper.test_api_key[-4..]}"
     else
       puts "⚠️  No real API key - integration tests will be skipped"
       puts "   Set MISTRAL_TEST_API_KEY or MISTRAL_API_KEY to run integration tests"
@@ -268,7 +269,7 @@ RSpec.configure do |config|
         cassette_count = Dir.glob("#{cassette_dir}/*.yml").count
         if cassette_count > 0
           Dir.glob("#{cassette_dir}/*.yml").each do |file|
-            File.delete(file) if File.exist?(file)
+            FileUtils.rm_f(file)
           end
           puts "   #{cassette_count} VCR cassettes cleaned"
         else

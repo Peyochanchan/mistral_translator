@@ -435,7 +435,7 @@ RSpec.describe MistralTranslator::Client do
 
       it "handles mixed success and errors" do
         call_count = 0
-        allow(client).to receive(:complete) do |*args|
+        allow(client).to receive(:complete) do |*_args|
           call_count += 1
           raise MistralTranslator::ApiError, "Error" unless call_count == 1
 

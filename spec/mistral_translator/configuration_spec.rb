@@ -4,20 +4,27 @@ RSpec.describe MistralTranslator::Configuration do
   let(:config) { described_class.new }
 
   describe "#initialize" do
-    it "sets default values" do
+    it "sets default API values" do
       expect(config.api_key).to be_nil
       expect(config.api_url).to eq("https://api.mistral.ai")
       expect(config.model).to eq("mistral-small")
       expect(config.default_max_tokens).to be_nil
       expect(config.default_temperature).to be_nil
-      expect(config.retry_delays).to eq([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
+    end
 
-      # Nouvelles valeurs par défaut pour les callbacks
+    it "sets default retry delays" do
+      expect(config.retry_delays).to eq([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
+    end
+
+    it "sets default callback values" do
       expect(config.on_translation_start).to be_nil
       expect(config.on_translation_complete).to be_nil
       expect(config.on_translation_error).to be_nil
       expect(config.on_rate_limit).to be_nil
       expect(config.on_batch_complete).to be_nil
+    end
+
+    it "sets default metrics value" do
       expect(config.enable_metrics).to be false
     end
   end
@@ -47,9 +54,14 @@ RSpec.describe MistralTranslator::Configuration do
       expect(config.api_key).to eq("new_key")
     end
 
-    it "allows setting and getting api_url" do
-      config.api_url = "https://custom.api.url"
-      expect(config.api_url).to eq("https://custom.api.url")
+    it "allows setting and getting api_url with valid Mistral URL" do
+      config.api_url = "https://api.mistral.ai"
+      expect(config.api_url).to eq("https://api.mistral.ai")
+    end
+
+    it "rejects invalid api_url" do
+      expect { config.api_url = "https://custom.api.url" }
+        .to raise_error(MistralTranslator::ConfigurationError, /Invalid API host/)
     end
 
     it "allows setting and getting model" do

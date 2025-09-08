@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require "spec_helper"
+# require "spec_helper"
 
 RSpec.describe "Mistral API Integration", :vcr do
-  before(:all) do
+  before do
     # Utiliser votre helper existant pour vérifier la disponibilité de l'API
     unless ApiKeyHelper.real_api_available?
       puts "\n⚠️  Skipping integration tests - no real API key found"
@@ -14,10 +14,6 @@ RSpec.describe "Mistral API Integration", :vcr do
 
     # Setup initial avec votre helper
     VCRHelper.setup_real_api_tests?
-  end
-
-  before do
-    # Configuration pour chaque test en utilisant votre helper
     MistralTranslator.reset_configuration!
     ApiKeyHelper.setup_test_configuration!
 
@@ -116,7 +112,7 @@ RSpec.describe "Mistral API Integration", :vcr do
       expect(result).to have_key("es")
       expect(result).to have_key("de")
 
-      result.each do |_locale, translation|
+      result.each_value do |translation|
         expect(translation).to be_a(String)
         expect(translation.length).to be > 3
       end
@@ -150,7 +146,7 @@ RSpec.describe "Mistral API Integration", :vcr do
       expect(result).to be_a(Hash)
       expect(result.keys).to contain_exactly(0, 1, 2, 3)
 
-      result.values.each do |translation|
+      result.each_value do |translation|
         expect(translation).to be_a(String)
         expect(translation.length).to be > 3
       end
@@ -177,7 +173,7 @@ RSpec.describe "Mistral API Integration", :vcr do
       expect(result).to be_a(Hash)
       expect(result.size).to eq(3)
 
-      result.values.each do |translation|
+      result.each_value do |translation|
         expect(translation).to be_a(String)
         expect(translation.length).to be > 5
       end
@@ -280,7 +276,7 @@ RSpec.describe "Mistral API Integration", :vcr do
       expect(result).to have_key("en")
       expect(result).to have_key("es")
 
-      result.each do |_locale, summary|
+      result.each_value do |summary|
         expect(summary).to be_a(String)
         expect(summary.length).to be < long_text.length
         expect(summary.length).to be > 20
@@ -457,11 +453,8 @@ end
 
 # Tests spécifiques pour les cas de production
 RSpec.describe "Production Scenarios", :vcr do
-  before(:all) do
-    skip "MISTRAL_API_KEY environment variable required for production scenario tests" unless ENV["MISTRAL_API_KEY"]
-  end
-
   before do
+    skip "MISTRAL_API_KEY environment variable required for production scenario tests" unless ENV["MISTRAL_API_KEY"]
     MistralTranslator.reset_configuration!
     MistralTranslator.configure do |config|
       config.api_key = ENV.fetch("MISTRAL_API_KEY")
@@ -536,7 +529,7 @@ RSpec.describe "Production Scenarios", :vcr do
       expect(result).to be_a(Hash)
       expect(result.size).to eq(5)
 
-      result.values.each do |translation|
+      result.each_value do |translation|
         expect(translation).to be_a(String)
         expect(translation.length).to be > 3
       end

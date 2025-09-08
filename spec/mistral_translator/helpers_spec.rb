@@ -20,7 +20,8 @@ RSpec.describe MistralTranslator::Helpers do
       glossary = { "API" => "API" }
 
       expect(MistralTranslator).to receive(:translate)
-        .with("<p>API documentation</p>", from: "en", to: "fr", context: context, glossary: glossary, preserve_html: true)
+        .with("<p>API documentation</p>", from: "en", to: "fr",
+                                          context: context, glossary: glossary, preserve_html: true)
 
       described_class.translate_rich_text(
         "<p>API documentation</p>",
@@ -54,7 +55,8 @@ RSpec.describe MistralTranslator::Helpers do
       allow(MistralTranslator::Translator).to receive(:new).and_return(mock_translator)
       allow(MistralTranslator::Client).to receive(:new).and_return(mock_client)
       allow(mock_client).to receive(:complete).and_return(quality_response)
-      allow(MistralTranslator::PromptBuilder).to receive(:translation_with_validation_prompt).and_return("validation prompt")
+      allow(MistralTranslator::PromptBuilder)
+        .to receive(:translation_with_validation_prompt).and_return("validation prompt")
     end
 
     it "returns translation with quality check results" do
@@ -431,9 +433,9 @@ RSpec.describe MistralTranslator::Helpers do
 
         expect(mock_translator).to receive(:translate).with("Hello", from: "en", to: "fr", context: nil,
                                                                      glossary: nil).and_return("Bonjour")
-        expect(mock_translator).to receive(:translate).with("Error", from: "en", to: "fr", context: nil, glossary: nil).and_raise(
-          StandardError, "Failed"
-        )
+        expect(mock_translator)
+          .to receive(:translate).with("Error", from: "en", to: "fr", context: nil, glossary: nil)
+          .and_raise(StandardError, "Failed")
 
         result = described_class.send(:translate_individually_with_errors, texts, from: "en", to: "fr")
 
@@ -448,8 +450,7 @@ RSpec.describe MistralTranslator::Helpers do
       record = Object.new
       record.extend(MistralTranslator::Helpers::RecordHelpers)
       mock_class = double("Class")
-      allow(mock_class).to receive(:superclass).and_return(Object)
-      allow(mock_class).to receive(:name).and_return("MockRecord")
+      allow(mock_class).to receive_messages(superclass: Object, name: "MockRecord")
       allow(record).to receive(:class).and_return(mock_class)
       record
     end
@@ -459,7 +460,8 @@ RSpec.describe MistralTranslator::Helpers do
         mock_adapter = instance_double(MistralTranslator::Adapters::BaseAdapter)
         mock_service = instance_double(MistralTranslator::Adapters::RecordTranslationService)
 
-        expect(MistralTranslator::Adapters::AdapterFactory).to receive(:build_for).with(mock_record).and_return(mock_adapter)
+        expect(MistralTranslator::Adapters::AdapterFactory)
+          .to receive(:build_for).with(mock_record).and_return(mock_adapter)
         expect(MistralTranslator::Adapters::RecordTranslationService).to receive(:new)
           .with(mock_record, ["name"], adapter: mock_adapter, from: "fr", to: "en")
           .and_return(mock_service)
@@ -472,11 +474,11 @@ RSpec.describe MistralTranslator::Helpers do
 
     describe "#estimate_translation_cost_for_fields" do
       it "calculates cost for multiple fields" do
-        allow(mock_record).to receive(:name_fr).and_return("Nom français")
-        allow(mock_record).to receive(:description_fr).and_return("Description française")
+        allow(mock_record).to receive_messages(name_fr: "Nom français", description_fr: "Description française")
 
+        # "Nom français" (12) + "Description française" (21) = 33
         expect(described_class).to receive(:estimate_translation_cost)
-          .with("x" * 33, from: "fr", to: "en", rate_per_1k_chars: 0.02) # "Nom français" (12) + "Description française" (21) = 33
+          .with("x" * 33, from: "fr", to: "en", rate_per_1k_chars: 0.02)
           .and_return({ estimated_cost: 0.0007 })
 
         result = mock_record.estimate_translation_cost_for_fields(%w[name description], from: "fr", to: "en")

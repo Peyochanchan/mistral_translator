@@ -4,12 +4,16 @@ require_relative "mistral_translator/version"
 require_relative "mistral_translator/errors"
 require_relative "mistral_translator/configuration"
 require_relative "mistral_translator/locale_helper"
+require_relative "mistral_translator/prompt_helpers"
 require_relative "mistral_translator/prompt_builder"
 require_relative "mistral_translator/response_parser"
+require_relative "mistral_translator/client_helpers"
 require_relative "mistral_translator/client"
+require_relative "mistral_translator/translator_helpers"
 require_relative "mistral_translator/translator"
 require_relative "mistral_translator/summarizer"
 require_relative "mistral_translator/adapters"
+require_relative "mistral_translator/helpers_extensions"
 require_relative "mistral_translator/helpers"
 
 module MistralTranslator
@@ -43,8 +47,8 @@ module MistralTranslator
       summarizer.summarize_to_multiple(text, languages: languages, max_words: max_words, **)
     end
 
-    def summarize_tiered(text, language: "fr", short: 50, medium: 150, long: 300, **)
-      summarizer.summarize_tiered(text, language: language, short: short, medium: medium, long: long, **)
+    def summarize_tiered(text, **)
+      summarizer.summarize_tiered(text, **)
     end
 
     # Méthodes utilitaires

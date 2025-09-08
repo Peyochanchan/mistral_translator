@@ -1,74 +1,92 @@
 # frozen_string_literal: true
 
+require_relative "helpers_extensions"
+require_relative "levenshtein_helpers"
+
 module MistralTranslator
   module Helpers
+    extend HelpersExtensions::TranslationHelpers
+    extend HelpersExtensions::AnalysisHelpers
+    extend HelpersExtensions::CostHelpers
+
     class << self
-      # Helper pour traduction avec Rich Text (HTML)
-      def translate_rich_text(content, from:, to:, context: nil, glossary: nil)
-        MistralTranslator.translate(
-          content,
-          from: from,
-          to: to,
-          context: context,
-          glossary: glossary,
-          preserve_html: true
-        )
-      end
-
-      # Helper pour traduction avec validation de qualité
-      def translate_with_quality_check(content, from:, to:, context: nil, glossary: nil)
-        Translator.new
-
-        # Utiliser le prompt de validation
-        prompt = PromptBuilder.translation_with_validation_prompt(
-          content, from, to, context: context, glossary: glossary
-        )
-
-        client = Client.new
-        raw_response = client.complete(prompt, context: { from_locale: from, to_locale: to })
-
-        result = ResponseParser.parse_translation_response(raw_response)
-        {
-          translation: result[:translated],
-          quality_check: result.dig(:metadata, "quality_check") || {},
-          metadata: result[:metadata]
-        }
-      end
-
       # Helper pour traduction par batch avec gestion d'erreurs avancée
-      def translate_batch_with_fallback(texts, from:, to:, context: nil, glossary: nil, fallback_strategy: :individual)
+      def translate_batch_with_fallback(texts, from:, to:, **options)
+        # Fallback par défaut: retraduire individuellement les éléments manquants
+        options = { fallback_strategy: :individual }.merge(options)
         translator = Translator.new
 
         begin
-          # Essayer d'abord en batch
-          results = translator.translate_batch(texts, from: from, to: to, context: context, glossary: glossary)
-
-          # Vérifier les résultats manquants
-          missing_indices = []
-          texts.each_with_index do |_, index|
-            missing_indices << index unless results[index]
-          end
-
-          # Traiter les échecs selon la stratégie
-          if missing_indices.any? && fallback_strategy == :individual
-            missing_indices.each do |index|
-              results[index] =
-                translator.translate(texts[index], from: from, to: to, context: context, glossary: glossary)
-            rescue StandardError => e
-              results[index] = { error: e.message }
-            end
-          end
-
+          results = attempt_batch_translation(translator, texts, from, to, options)
+          handle_missing_results({ translator: translator, texts: texts, from: from, to: to, results: results },
+                                 **options)
           results
         rescue StandardError => e
-          # Si le batch échoue complètement, fallback individuel
-          raise e unless fallback_strategy == :individual
-
-          translate_individually_with_errors(texts, from: from, to: to, context: context, glossary: glossary)
+          handle_batch_failure(e, { translator: translator, texts: texts, from: from, to: to }, **options)
         end
       end
 
+      private
+
+      def attempt_batch_translation(translator, texts, from, to, options)
+        translator.translate_batch(texts, from: from, to: to, context: options[:context], glossary: options[:glossary])
+      end
+
+      def handle_missing_results(translation_data, **options)
+        translator = translation_data[:translator]
+        texts = translation_data[:texts]
+        from = translation_data[:from]
+        to = translation_data[:to]
+        results = translation_data[:results]
+
+        missing_indices = find_missing_indices(texts, results)
+        return unless missing_indices.any? && options[:fallback_strategy] == :individual
+
+        translation_params = { translator: translator, texts: texts, from: from, to: to, results: results,
+                               missing_indices: missing_indices }
+        retry_missing_translations(translation_params, **options)
+      end
+
+      def find_missing_indices(texts, results)
+        missing_indices = []
+        texts.each_with_index do |_, index|
+          missing_indices << index unless results[index]
+        end
+        missing_indices
+      end
+
+      def retry_missing_translations(params, **options)
+        translator = params[:translator]
+        texts = params[:texts]
+        from = params[:from]
+        to = params[:to]
+        results = params[:results]
+        missing_indices = params[:missing_indices]
+
+        missing_indices.each do |index|
+          results[index] =
+            translator.translate(texts[index], from: from, to: to, context: options[:context],
+                                               glossary: options[:glossary])
+        rescue StandardError => e
+          results[index] = { error: e.message }
+        end
+      end
+
+      def handle_batch_failure(error, translation_data, **options)
+        raise error unless options[:fallback_strategy] == :individual
+
+        _translator = translation_data[:translator]
+        texts = translation_data[:texts]
+        from = translation_data[:from]
+        to = translation_data[:to]
+
+        translate_individually_with_errors(texts, from: from, to: to, context: options[:context],
+                                                  glossary: options[:glossary])
+      end
+
       # Helper pour traduction progressive avec callback
+      public
+
       def translate_with_progress(items, from:, to:, context: nil, glossary: nil, &progress_callback)
         results = {}
         total = items.size
@@ -116,11 +134,12 @@ module MistralTranslator
       end
 
       # Helper pour traduction multi-style
-      def translate_multi_style(text, from:, to:, styles: %i[formal casual], context: nil, glossary: nil)
+      def translate_multi_style(text, from:, to:, **options)
         results = {}
 
+        styles = options[:styles] || %i[formal casual]
         styles.each do |style|
-          style_context = context ? "#{context} (Style: #{style})" : "Style: #{style}"
+          style_context = options[:context] ? "#{options[:context]} (Style: #{style})" : "Style: #{style}"
 
           begin
             results[style] = MistralTranslator.translate(
@@ -128,7 +147,7 @@ module MistralTranslator
               from: from,
               to: to,
               context: style_context,
-              glossary: glossary
+              glossary: options[:glossary]
             )
           rescue StandardError => e
             results[style] = { error: e.message }
@@ -139,6 +158,7 @@ module MistralTranslator
       end
 
       # Helper pour validation de locale avec suggestions
+
       def validate_locale_with_suggestions(locale)
         { valid: true, locale: LocaleHelper.validate_locale!(locale) }
       rescue UnsupportedLanguageError => e
@@ -148,20 +168,6 @@ module MistralTranslator
           error: e.message,
           suggestions: suggestions,
           supported_locales: LocaleHelper.supported_locales
-        }
-      end
-
-      # Helper pour estimation de coût (basique)
-      def estimate_translation_cost(text, from:, to:, rate_per_1k_chars: 0.02)
-        char_count = text.length
-        estimated_cost = (char_count / 1000.0) * rate_per_1k_chars
-
-        {
-          character_count: char_count,
-          estimated_cost: estimated_cost.round(4),
-          currency: "USD",
-          rate_used: rate_per_1k_chars,
-          disclaimer: "Estimation basique, coût réel peut varier"
         }
       end
 
@@ -185,6 +191,8 @@ module MistralTranslator
       private
 
       def translate_individually_with_errors(texts, from:, to:, context: nil, glossary: nil)
+        # Adapter la signature aux specs tests
+
         translator = Translator.new
         results = {}
 
@@ -235,35 +243,16 @@ module MistralTranslator
         # Si pas de suggestions par préfixe, chercher par distance
         if suggestions.empty?
           suggestions = supported.select do |locale|
-            levenshtein_distance(invalid_locale.downcase, locale) <= 2
+            LevenshteinHelpers.levenshtein_distance(invalid_locale.downcase, locale) <= 2
           end
         end
 
         suggestions.first(3) # Limiter à 3 suggestions
       end
 
-      def levenshtein_distance(str1, str2)
-        # Algorithme de distance de Levenshtein simplifié
-        return str2.length if str1.empty?
-        return str1.length if str2.empty?
-
-        matrix = Array.new(str1.length + 1) { Array.new(str2.length + 1) }
-
-        (0..str1.length).each { |i| matrix[i][0] = i }
-        (0..str2.length).each { |j| matrix[0][j] = j }
-
-        (1..str1.length).each do |i|
-          (1..str2.length).each do |j|
-            cost = str1[i - 1] == str2[j - 1] ? 0 : 1
-            matrix[i][j] = [
-              matrix[i - 1][j] + 1,     # deletion
-              matrix[i][j - 1] + 1,     # insertion
-              matrix[i - 1][j - 1] + cost # substitution
-            ].min
-          end
-        end
-
-        matrix[str1.length][str2.length]
+      # Exposer la distance de Levenshtein en privé via délégation pour les tests
+      def levenshtein_distance(source_string, target_string)
+        LevenshteinHelpers.levenshtein_distance(source_string, target_string)
       end
     end
 

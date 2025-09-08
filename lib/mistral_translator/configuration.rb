@@ -2,8 +2,10 @@
 
 module MistralTranslator
   class Configuration
-    attr_accessor :api_key, :api_url, :model, :default_max_tokens, :default_temperature, :retry_delays,
-                  :on_translation_start, :on_translation_complete, :on_translation_error, :on_rate_limit, :on_batch_complete, :enable_metrics
+    attr_accessor :api_key, :model, :default_max_tokens, :default_temperature, :retry_delays,
+                  :on_translation_start, :on_translation_complete, :on_translation_error,
+                  :on_rate_limit, :on_batch_complete, :enable_metrics
+    attr_reader :api_url
 
     def initialize
       @api_key = nil
@@ -39,6 +41,11 @@ module MistralTranslator
       end
 
       @api_key
+    end
+
+    def api_url=(url)
+      validate_api_url(url)
+      @api_url = url
     end
 
     # Méthodes pour les callbacks
@@ -91,7 +98,8 @@ module MistralTranslator
                                                    0
                                                  end,
                        average_characters_per_translation: if @metrics[:total_translations].positive?
-                                                             (@metrics[:total_characters] / @metrics[:total_translations]).round(0)
+                                                             (@metrics[:total_characters] /
+                                                               @metrics[:total_translations]).round(0)
                                                            else
                                                              0
                                                            end,
@@ -133,6 +141,46 @@ module MistralTranslator
       @on_rate_limit = lambda { |from, to, wait_time, attempt, _timestamp|
         Rails.logger.warn "[MistralTranslator] Rate limit #{from}->#{to}, waiting #{wait_time}s (attempt #{attempt})"
       }
+    end
+
+    private
+
+    def validate_api_url(url)
+      uri = parse_uri(url)
+      validate_uri_scheme(uri, url)
+      validate_uri_host(uri)
+      validate_uri_path(uri)
+      validate_uri_port(uri)
+    end
+
+    def parse_uri(url)
+      require "uri"
+      URI.parse(url)
+    rescue URI::InvalidURIError
+      raise ConfigurationError, "Invalid API URL format: #{url}"
+    end
+
+    def validate_uri_scheme(uri, url)
+      raise ConfigurationError, "Invalid API URL format: #{url}" if uri.scheme.nil?
+      raise ConfigurationError, "API URL must use HTTPS protocol. Got: #{uri.scheme}" unless uri.scheme == "https"
+    end
+
+    def validate_uri_host(uri)
+      return if uri.host == "api.mistral.ai"
+
+      raise ConfigurationError, "Invalid API host. Expected 'api.mistral.ai', got: #{uri.host}"
+    end
+
+    def validate_uri_path(uri)
+      return if uri.path.nil? || uri.path.empty? || uri.path == "/"
+
+      raise ConfigurationError, "Invalid API path. Expected root path, got: #{uri.path}"
+    end
+
+    def validate_uri_port(uri)
+      return if uri.port.nil? || uri.port == 443
+
+      raise ConfigurationError, "Invalid API port. Expected 443 or default, got: #{uri.port}"
     end
   end
 

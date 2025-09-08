@@ -253,8 +253,14 @@ RSpec.describe MistralTranslator::ResponseParser do
       it "extracts JSON with escaped quotes in HTML content" do
         complex_json = '{
           "content": {
-            "source": "<div class=\"trix-content\"><div>Una asociación para promover la alfabetización digital y garantizar el acceso equitativo a la tecnología para todas las comunidades. <strong>Fomentamos la innovación para empoderar a una sociedad global conectada.</strong></div></div>",
-            "target": "<div class=\"trix-content\"><div>A association to promote digital literacy and ensure equitable access to technology for all communities. <strong>We foster innovation to empower a connected global society.</strong></div></div>"
+            "source": "<div class=\"trix-content\"><div>Una asociación para promover la alfabetización digital " \
+                      "y garantizar el acceso equitativo a la tecnología para todas las comunidades. " \
+                      "<strong>Fomentamos la innovación para empoderar a una sociedad global conectada.</strong>" \
+                      "</div></div>",
+            "target": "<div class=\"trix-content\"><div>A association to promote digital literacy " \
+                      "and ensure equitable access to technology for all communities. " \
+                      "<strong>We foster innovation to empower a connected global society.</strong>" \
+                      "</div></div>"
           },
           "metadata": {
             "source_language": "es",
@@ -277,8 +283,14 @@ RSpec.describe MistralTranslator::ResponseParser do
       it "parses the exact JSON from the error case" do
         problematic_json = '{
   "content": {
-    "source": "<div class=\\"trix-content\\"><div>Una asociación para promover la alfabetización digital y garantizar el acceso equitativo a la tecnología para todas las comunidades. <strong>Fomentamos la innovación para empoderar a una sociedad global conectada.</strong></div></div>",
-    "target": "<div class=\\"trix-content\\"><div>A association to promote digital literacy and ensure equitable access to technology for all communities. <strong>We foster innovation to empower a connected global society.</strong></div></div>"
+    "source": "<div class=\\"trix-content\\"><div>Una asociación para promover la alfabetización digital " \
+              "y garantizar el acceso equitativo a la tecnología para todas las comunidades. " \
+              "<strong>Fomentamos la innovación para empoderar a una sociedad global conectada.</strong>" \
+              "</div></div>",
+    "target": "<div class=\\"trix-content\\"><div>A association to promote digital literacy " \
+              "and ensure equitable access to technology for all communities. " \
+              "<strong>We foster innovation to empower a connected global society.</strong>" \
+              "</div></div>"
   },
   "metadata": {
     "source_language": "es",

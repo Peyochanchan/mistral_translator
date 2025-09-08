@@ -288,7 +288,7 @@ RSpec.describe MistralTranslator do
     describe ".mistral_translate" do
       it "calls MistralTranslator.translate with options" do
         context = "technical"
-        expect(MistralTranslator).to receive(:translate)
+        expect(described_class).to receive(:translate)
           .with("Hello", from: "en", to: "fr", context: context)
           .and_return("Bonjour")
 
@@ -300,7 +300,7 @@ RSpec.describe MistralTranslator do
     describe ".mistral_summarize" do
       it "calls MistralTranslator.summarize with options" do
         style = "formal"
-        expect(MistralTranslator).to receive(:summarize)
+        expect(described_class).to receive(:summarize)
           .with("Long text", language: "fr", max_words: 100, style: style)
           .and_return("Summary")
 
@@ -388,13 +388,13 @@ RSpec.describe "MistralTranslator Integration" do
 
     before do
       MistralTranslator.configure do |config|
-        config.on_translation_start = lambda { |from, to, length, timestamp|
+        config.on_translation_start = lambda { |from, to, length, _timestamp|
           translation_calls << { event: :start, from: from, to: to, length: length }
         }
-        config.on_translation_complete = lambda { |from, to, orig_len, trans_len, duration|
+        config.on_translation_complete = lambda { |from, to, _orig_len, _trans_len, duration|
           translation_calls << { event: :complete, from: from, to: to, duration: duration }
         }
-        config.on_translation_error = lambda { |from, to, error, attempt, timestamp|
+        config.on_translation_error = lambda { |from, to, error, attempt, _timestamp|
           error_calls << { from: from, to: to, error: error.class.name, attempt: attempt }
         }
       end
@@ -410,7 +410,7 @@ RSpec.describe "MistralTranslator Integration" do
       # Mock le client pour appeler les callbacks comme dans la vraie vie
       expect(mock_client).to receive(:complete) do |prompt, context:|
         # Simuler l'appel des callbacks comme dans Client#complete
-        start_time = Time.now
+        Time.now
 
         # Trigger callback pour le début de traduction
         MistralTranslator.configuration.trigger_translation_start(
@@ -485,10 +485,7 @@ RSpec.describe "MistralTranslator Integration" do
   describe "Record Translation Integration" do
     let(:mock_record) do
       record = double("Topic")
-      allow(record).to receive(:save!).and_return(true)
-      allow(record).to receive(:name_en).and_return("English Name")
-      allow(record).to receive(:name_fr).and_return("")
-      allow(record).to receive(:name_es).and_return("")
+      allow(record).to receive_messages(save!: true, name_en: "English Name", name_fr: "", name_es: "")
       allow(record).to receive(:name_fr=)
       allow(record).to receive(:name_es=)
       record

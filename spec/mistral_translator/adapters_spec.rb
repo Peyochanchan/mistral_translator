@@ -41,13 +41,13 @@ RSpec.describe MistralTranslator::Adapters do
     describe "#detect_source_locale" do
       before do
         allow(adapter).to receive(:available_locales).and_return(%i[fr en es])
-        allow(adapter).to receive(:has_content?).with("name", :fr).and_return(true)
-        allow(adapter).to receive(:has_content?).with("name", :en).and_return(false)
-        allow(adapter).to receive(:has_content?).with("name", :es).and_return(false)
+        allow(adapter).to receive(:content?).with("name", :fr).and_return(true)
+        allow(adapter).to receive(:content?).with("name", :en).and_return(false)
+        allow(adapter).to receive(:content?).with("name", :es).and_return(false)
       end
 
       it "returns preferred locale when it has content" do
-        allow(adapter).to receive(:has_content?).with("name", :en).and_return(true)
+        allow(adapter).to receive(:content?).with("name", :en).and_return(true)
 
         result = adapter.detect_source_locale("name", :en)
         expect(result).to eq(:en)
@@ -59,27 +59,27 @@ RSpec.describe MistralTranslator::Adapters do
       end
 
       it "returns first available locale as fallback" do
-        allow(adapter).to receive(:has_content?).and_return(false)
+        allow(adapter).to receive(:content?).and_return(false)
 
         result = adapter.detect_source_locale("name")
         expect(result).to eq(:fr)
       end
     end
 
-    describe "#has_content?" do
+    describe "#content?" do
       it "returns false for nil value" do
         allow(adapter).to receive(:get_field_value).and_return(nil)
-        expect(adapter.has_content?("name", :fr)).to be false
+        expect(adapter.content?("name", :fr)).to be false
       end
 
       it "returns true for string content" do
         allow(adapter).to receive(:get_field_value).and_return("content")
-        expect(adapter.has_content?("name", :fr)).to be true
+        expect(adapter.content?("name", :fr)).to be true
       end
 
       it "returns false for empty string" do
         allow(adapter).to receive(:get_field_value).and_return("")
-        expect(adapter.has_content?("name", :fr)).to be false
+        expect(adapter.content?("name", :fr)).to be false
       end
 
       context "with ActionText" do
@@ -94,13 +94,13 @@ RSpec.describe MistralTranslator::Adapters do
 
         it "returns true for rich text with content" do
           allow(adapter).to receive(:get_field_value).and_return(mock_rich_text)
-          expect(adapter.has_content?("description", :fr)).to be true
+          expect(adapter.content?("description", :fr)).to be true
         end
 
         it "returns false for rich text without content" do
           allow(mock_rich_text).to receive(:to_plain_text).and_return("")
           allow(adapter).to receive(:get_field_value).and_return(mock_rich_text)
-          expect(adapter.has_content?("description", :fr)).to be false
+          expect(adapter.content?("description", :fr)).to be false
         end
       end
     end
@@ -417,9 +417,11 @@ RSpec.describe MistralTranslator::Adapters do
 
     describe "#translate_to_all_locales" do
       before do
-        allow(mock_adapter).to receive(:detect_source_locale).and_return(:fr)
-        allow(mock_adapter).to receive(:get_translatable_content).and_return("Content français")
-        allow(mock_adapter).to receive(:available_locales).and_return(%i[fr en es])
+        allow(mock_adapter).to receive_messages(
+          detect_source_locale: :fr,
+          get_translatable_content: "Content français",
+          available_locales: %i[fr en es]
+        )
         allow(mock_adapter).to receive(:set_field_value)
       end
 
@@ -428,28 +430,53 @@ RSpec.describe MistralTranslator::Adapters do
         expect(empty_service.translate_to_all_locales).to be false
       end
 
-      it "translates all fields to all locales" do
-        # Doit détecter la source pour chaque champ
+      it "detects source locales for fields" do
         expect(mock_adapter).to receive(:detect_source_locale).with("name", nil).and_return(:fr)
         expect(mock_adapter).to receive(:detect_source_locale).with("description", nil).and_return(:fr)
 
-        # Doit récupérer le contenu source
+        allow(mock_adapter).to receive(:get_translatable_content).and_return("Content")
+        allow(MistralTranslator).to receive(:translate).and_return("Translated")
+        allow(mock_adapter).to receive(:set_field_value)
+        allow(mock_adapter).to receive(:save_record!)
+
+        service.translate_to_all_locales
+      end
+
+      it "retrieves source content for translation" do
+        allow(mock_adapter).to receive(:detect_source_locale).and_return(:fr)
         expect(mock_adapter).to receive(:get_translatable_content).with("name", :fr).and_return("Nom")
         expect(mock_adapter).to receive(:get_translatable_content).with("description", :fr).and_return("Description")
 
-        # Doit traduire vers les langues cibles (en, es)
-        expect(MistralTranslator).to receive(:translate).with("Nom", from: "fr", to: "en").and_return("Name")
-        expect(MistralTranslator).to receive(:translate).with("Nom", from: "fr", to: "es").and_return("Nombre")
-        expect(MistralTranslator).to receive(:translate).with("Description", from: "fr",
-                                                                             to: "en").and_return("Description EN")
-        expect(MistralTranslator).to receive(:translate).with("Description", from: "fr",
-                                                                             to: "es").and_return("Description ES")
+        allow(MistralTranslator).to receive(:translate).and_return("Translated")
+        allow(mock_adapter).to receive(:set_field_value)
+        allow(mock_adapter).to receive(:save_record!)
 
-        # Doit définir les valeurs traduites
-        expect(mock_adapter).to receive(:set_field_value).with("name", :en, "Name")
-        expect(mock_adapter).to receive(:set_field_value).with("name", :es, "Nombre")
-        expect(mock_adapter).to receive(:set_field_value).with("description", :en, "Description EN")
-        expect(mock_adapter).to receive(:set_field_value).with("description", :es, "Description ES")
+        service.translate_to_all_locales
+      end
+
+      it "translates content to target locales" do
+        allow(mock_adapter).to receive_messages(detect_source_locale: :fr, get_translatable_content: "Content")
+
+        expect(MistralTranslator).to receive(:translate).with("Content", from: "fr",
+                                                                         to: "en").and_return("Translated EN")
+        expect(MistralTranslator).to receive(:translate).with("Content", from: "fr",
+                                                                         to: "es").and_return("Translated ES")
+
+        allow(mock_adapter).to receive(:set_field_value)
+        allow(mock_adapter).to receive(:save_record!)
+
+        service.translate_to_all_locales
+      end
+
+      it "sets translated values and saves record" do
+        allow(mock_adapter).to receive_messages(detect_source_locale: :fr, get_translatable_content: "Content")
+        allow(MistralTranslator).to receive(:translate).and_return("Translated")
+
+        expect(mock_adapter).to receive(:set_field_value).with("name", :en, "Translated")
+        expect(mock_adapter).to receive(:set_field_value).with("name", :es, "Translated")
+        expect(mock_adapter).to receive(:set_field_value).with("description", :en, "Translated")
+        expect(mock_adapter).to receive(:set_field_value).with("description", :es, "Translated")
+        expect(mock_adapter).to receive(:save_record!)
 
         result = service.translate_to_all_locales
         expect(result).to be true
@@ -472,7 +499,7 @@ RSpec.describe MistralTranslator::Adapters do
 
         # Premier appel échoue avec rate limit, deuxième réussit
         call_count = 0
-        allow(MistralTranslator).to receive(:translate) do |*args|
+        allow(MistralTranslator).to receive(:translate) do |*_args|
           call_count += 1
           raise MistralTranslator::RateLimitError, "API rate limit exceeded" if call_count == 1
 
@@ -511,7 +538,8 @@ RSpec.describe MistralTranslator::Adapters do
     describe ".translate_mobility_record" do
       it "uses MobilityAdapter" do
         adapter_double = instance_double(MistralTranslator::Adapters::MobilityAdapter)
-        expect(MistralTranslator::Adapters::MobilityAdapter).to receive(:new).with(mock_record).and_return(adapter_double)
+        expect(MistralTranslator::Adapters::MobilityAdapter)
+          .to receive(:new).with(mock_record).and_return(adapter_double)
         expect(MistralTranslator::RecordTranslation).to receive(:translate_record)
           .with(mock_record, ["name"], adapter: adapter_double, source_locale: :fr)
 
@@ -522,7 +550,8 @@ RSpec.describe MistralTranslator::Adapters do
     describe ".translate_globalize_record" do
       it "uses GlobalizeAdapter" do
         adapter_double = instance_double(MistralTranslator::Adapters::GlobalizeAdapter)
-        expect(MistralTranslator::Adapters::GlobalizeAdapter).to receive(:new).with(mock_record).and_return(adapter_double)
+        expect(MistralTranslator::Adapters::GlobalizeAdapter)
+          .to receive(:new).with(mock_record).and_return(adapter_double)
         expect(MistralTranslator::RecordTranslation).to receive(:translate_record)
           .with(mock_record, ["name"], adapter: adapter_double, source_locale: :en)
 

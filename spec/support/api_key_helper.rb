@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # spec/support/api_key_helper.rb
 
 module ApiKeyHelper
@@ -23,7 +25,7 @@ end
 module VCRHelper
   def self.setup_real_api_tests?
     if ApiKeyHelper.real_api_available?
-      puts "🔑 Clé API détectée - Tests d'intégration avec vraie API"
+      # puts "🔑 Clé API détectée - Tests d'intégration avec vraie API"
       ApiKeyHelper.setup_test_configuration!
       true
     else
