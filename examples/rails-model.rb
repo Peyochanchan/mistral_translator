@@ -241,6 +241,7 @@ class TranslationJob < ApplicationJob
   retry_on MistralTranslator::RateLimitError, wait: :exponentially_longer
   discard_on MistralTranslator::AuthenticationError
 
+  # rubocop:disable Metrics/PerceivedComplexity
   def perform(record, field_names, options = {})
     source_locale = options["source_locale"] || I18n.default_locale.to_s
     target_locales = options["target_locales"] || (I18n.available_locales.map(&:to_s) - [source_locale])
@@ -265,6 +266,7 @@ class TranslationJob < ApplicationJob
     # Callback optionnel
     record.after_translation_complete if record.respond_to?(:after_translation_complete)
   end
+  # rubocop:enable Metrics/PerceivedComplexity
 end
 
 # === EXEMPLE 5: Concern réutilisable ===

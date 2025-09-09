@@ -48,6 +48,7 @@ end
 # === CLASSE: Collecteur de métriques avancé ===
 
 class TranslationMetricsCollector
+  CallbackSet = Struct.new(:start, :complete, :error, :rate_limit)
   def initialize
     @stats = {
       translations: 0,
@@ -65,52 +66,59 @@ class TranslationMetricsCollector
   end
 
   def setup_callbacks!
-    original_config = MistralTranslator.configuration
+    originals = fetch_original_callbacks
 
-    # Sauvegarder les callbacks existants
-    original_start = original_config.on_translation_start
-    original_complete = original_config.on_translation_complete
-    original_error = original_config.on_translation_error
-    original_rate_limit = original_config.on_rate_limit
-
-    # Ajouter nos callbacks
     MistralTranslator.configure do |config|
-      config.on_translation_start = lambda { |from, to, length, timestamp|
-        original_start&.call(from, to, length, timestamp)
-        on_translation_start(from, to, length, timestamp)
-      }
-
-      config.on_translation_complete = lambda { |from, to, orig_len, trans_len, duration|
-        original_complete&.call(from, to, orig_len, trans_len, duration)
-        on_translation_complete(from, to, orig_len, trans_len, duration)
-      }
-
-      config.on_translation_error = lambda { |from, to, error, attempt, timestamp|
-        original_error&.call(from, to, error, attempt, timestamp)
-        on_translation_error(from, to, error, attempt, timestamp)
-      }
-
-      config.on_rate_limit = lambda { |from, to, wait_time, attempt, timestamp|
-        original_rate_limit&.call(from, to, wait_time, attempt, timestamp)
-        on_rate_limit(from, to, wait_time, attempt, timestamp)
-      }
+      assign_wrapped_callbacks(config, originals)
     end
   end
 
-  def on_translation_start(from, to, length, timestamp)
+  def fetch_original_callbacks
+    config = MistralTranslator.configuration
+    CallbackSet.new(
+      config.on_translation_start,
+      config.on_translation_complete,
+      config.on_translation_error,
+      config.on_rate_limit
+    )
+  end
+
+  def assign_wrapped_callbacks(config, originals)
+    config.on_translation_start = lambda { |from, to, length, timestamp|
+      originals.start&.call(from, to, length, timestamp)
+      on_translation_start(from, to, length, timestamp)
+    }
+
+    config.on_translation_complete = lambda { |from, to, orig_len, trans_len, duration|
+      originals.complete&.call(from, to, orig_len, trans_len, duration)
+      on_translation_complete(from, to, orig_len, trans_len, duration)
+    }
+
+    config.on_translation_error = lambda { |from, to, error, attempt, timestamp|
+      originals.error&.call(from, to, error, attempt, timestamp)
+      on_translation_error(from, to, error, attempt, timestamp)
+    }
+
+    config.on_rate_limit = lambda { |from, to, wait_time, attempt, timestamp|
+      originals.rate_limit&.call(from, to, wait_time, attempt, timestamp)
+      on_rate_limit(from, to, wait_time, attempt, timestamp)
+    }
+  end
+
+  def on_translation_start(_from, _to, length, timestamp)
     hour_key = timestamp.strftime("%Y-%m-%d %H:00")
     @stats[:hourly_stats][hour_key][:count] += 1
     @stats[:total_chars_input] += length
   end
 
-  def on_translation_complete(from, to, orig_len, trans_len, duration)
+  def on_translation_complete(from, to, _orig_len, trans_len, duration)
     @stats[:translations] += 1
     @stats[:total_duration] += duration
     @stats[:total_chars_output] += trans_len
     @stats[:by_language]["#{from}_to_#{to}"] += 1
   end
 
-  def on_translation_error(from, to, error, attempt, timestamp)
+  def on_translation_error(_from, _to, error, _attempt, timestamp)
     @stats[:errors] += 1
     @stats[:error_types][error.class.name] += 1
 
@@ -118,14 +126,15 @@ class TranslationMetricsCollector
     @stats[:hourly_stats][hour_key][:errors] += 1
   end
 
-  def on_rate_limit(from, to, wait_time, attempt, timestamp)
+  def on_rate_limit(_from, _to, _wait_time, _attempt, _timestamp)
     @stats[:rate_limits] += 1
   end
 
+  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
   def report
     uptime = Time.now - @start_time
 
-    puts "\n" + ("=" * 50)
+    puts "\n#{"=" * 50}"
     puts "📊 TRANSLATION METRICS REPORT"
     puts "=" * 50
 
@@ -136,7 +145,7 @@ class TranslationMetricsCollector
     puts "⏳ Rate limits: #{@stats[:rate_limits]}"
 
     # Performance
-    if @stats[:translations] > 0
+    if @stats[:translations].positive?
       avg_duration = @stats[:total_duration] / @stats[:translations]
       puts "⚡ Avg duration: #{avg_duration.round(3)}s per translation"
       puts "📊 Throughput: #{(@stats[:translations] / uptime).round(2)} translations/sec"
@@ -145,7 +154,7 @@ class TranslationMetricsCollector
     # Caractères
     puts "📄 Input chars: #{@stats[:total_chars_input]}"
     puts "📄 Output chars: #{@stats[:total_chars_output]}"
-    if @stats[:total_chars_input] > 0
+    if @stats[:total_chars_input].positive?
       expansion = @stats[:total_chars_output].to_f / @stats[:total_chars_input]
       puts "📈 Text expansion: #{expansion.round(2)}x"
     end
@@ -172,16 +181,17 @@ class TranslationMetricsCollector
     if @stats[:hourly_stats].any?
       puts "\n🕐 Activity by hour (last 5):"
       @stats[:hourly_stats].sort_by { |hour, _| hour }.last(5).each do |hour, stats|
-        error_rate = stats[:count] > 0 ? (stats[:errors].to_f / stats[:count] * 100).round(1) : 0
+        error_rate = stats[:count].positive? ? (stats[:errors].to_f / stats[:count] * 100).round(1) : 0
         puts "   #{hour}: #{stats[:count]} translations, #{stats[:errors]} errors (#{error_rate}%)"
       end
     end
 
     puts "=" * 50
   end
+  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
 
   def error_rate
-    return 0 if @stats[:translations] == 0
+    return 0 if @stats[:translations].zero?
 
     (@stats[:errors].to_f / (@stats[:translations] + @stats[:errors]) * 100).round(1)
   end
@@ -241,7 +251,7 @@ class AlertingSystem
 
   def check_performance_degradation!
     stats = @metrics.instance_variable_get(:@stats)
-    return unless stats[:translations] > 0
+    return unless stats[:translations].positive?
 
     avg_duration = stats[:total_duration] / stats[:translations]
     return unless avg_duration > 10.0 # Plus de 10 secondes en moyenne
@@ -271,7 +281,7 @@ class AlertingSystem
     simulate_external_alert(level, message)
   end
 
-  def simulate_external_alert(level, message)
+  def simulate_external_alert(_level, _message)
     # Exemple d'intégration Slack
     if ENV["SLACK_WEBHOOK_URL"]
       # webhook_payload = {
@@ -316,7 +326,7 @@ class MonitoringDashboard
       },
 
       performance: {
-        avg_duration: stats[:translations] > 0 ? (stats[:total_duration] / stats[:translations]).round(3) : 0,
+        avg_duration: stats[:translations].positive? ? (stats[:total_duration] / stats[:translations]).round(3) : 0,
         total_duration: stats[:total_duration].round(3),
         chars_per_second: calculate_chars_per_second(stats),
         text_expansion_ratio: calculate_expansion_ratio(stats)
@@ -348,11 +358,11 @@ class MonitoringDashboard
 
   def calculate_chars_per_second(stats)
     uptime = Time.now - @metrics.instance_variable_get(:@start_time)
-    uptime > 0 ? (stats[:total_chars_input] / uptime).round(2) : 0
+    uptime.positive? ? (stats[:total_chars_input] / uptime).round(2) : 0
   end
 
   def calculate_expansion_ratio(stats)
-    return 1.0 if stats[:total_chars_input] == 0
+    return 1.0 if stats[:total_chars_input].zero?
 
     (stats[:total_chars_output].to_f / stats[:total_chars_input]).round(3)
   end
@@ -431,7 +441,7 @@ end
 
 # === CONFIGURATION POUR PRODUCTION ===
 
-puts "\n" + ("=" * 50)
+puts "\n#{"=" * 50}"
 puts "📋 PRODUCTION MONITORING SETUP EXAMPLE"
 puts "=" * 50
 

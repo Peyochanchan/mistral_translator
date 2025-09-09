@@ -117,7 +117,11 @@ puts
 # 7. Résumé simple
 puts "7. Résumé de texte"
 puts "-" * 17
-article = "Ruby on Rails est un framework web MVC écrit en Ruby qui privilégie la convention sur la configuration. Il inclut Active Record pour l'ORM, Action View pour les vues, et Action Controller pour la logique métier."
+article = <<~TEXT.strip
+  Ruby on Rails est un framework web MVC écrit en Ruby qui privilégie la
+  convention sur la configuration. Il inclut Active Record pour l'ORM, Action
+  View pour les vues, et Action Controller pour la logique métier.
+TEXT
 
 summary = MistralTranslator.summarize(article, language: "fr", max_words: 25)
 puts "Résumé: #{summary}"

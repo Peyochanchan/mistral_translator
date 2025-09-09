@@ -17,6 +17,7 @@ end
 # === EXEMPLE 1: Traduction de fichiers CSV ===
 
 require "csv"
+require "fileutils"
 
 class CSVTranslationBatch
   def initialize(input_file, output_file, from:, to:, text_columns: [])
@@ -34,13 +35,13 @@ class CSVTranslationBatch
 
     translated_rows = []
 
-    rows.each_slice(@batch_size) do |batch|
+    total_batches = (rows.size.to_f / @batch_size).ceil
+    rows.each_slice(@batch_size).with_index do |batch, index|
       puts "🔄 Processing batch of #{batch.size} rows..."
-      translated_batch = process_batch(batch)
-      translated_rows.concat(translated_batch)
+      translated_rows.concat(process_batch(batch))
 
-      # Rate limiting
-      sleep(2) unless batch == rows.last(@batch_size)
+      # Rate limiting uniquement entre les batches
+      sleep(2) if index < total_batches - 1
     end
 
     # Écriture du fichier de sortie
@@ -272,7 +273,7 @@ class RobustBatchProcessor
       begin
         result = MistralTranslator.translate(item, from: @from, to: @to)
         @results[index] = result
-      rescue MistralTranslator::RateLimitError => e
+      rescue MistralTranslator::RateLimitError
         puts "\n⏳ Rate limit hit, waiting..."
         sleep(30)
         @retry_queue << { index: index, item: item, attempts: 1 }
@@ -314,26 +315,50 @@ class RobustBatchProcessor
   end
 
   def generate_report
+    totals = compute_totals
+    print_header_and_totals(totals)
+    print_translator_metrics_if_enabled
+    print_top_errors
+  end
+
+  def compute_totals
     successful = @results.size
     failed = @errors.size
     total = @items.size
+    {
+      successful: successful,
+      failed: failed,
+      total: total,
+      success_rate: percentage(successful, total),
+      fail_rate: percentage(failed, total)
+    }
+  end
 
+  def percentage(count, total)
+    return 0.0 if total.zero?
+
+    (count.to_f / total * 100).round(1)
+  end
+
+  def print_header_and_totals(totals)
     puts "\n\n📊 BATCH PROCESSING REPORT"
     puts "=" * 40
-    puts "Total items: #{total}"
-    puts "Successful: #{successful} (#{(successful.to_f / total * 100).round(1)}%)"
-    puts "Failed: #{failed} (#{(failed.to_f / total * 100).round(1)}%)"
+    puts "Total items: #{totals[:total]}"
+    puts "Successful: #{totals[:successful]} (#{totals[:success_rate]}%)"
+    puts "Failed: #{totals[:failed]} (#{totals[:fail_rate]}%)"
+  end
 
-    # Métriques MistralTranslator
-    if MistralTranslator.configuration.enable_metrics
-      metrics = MistralTranslator.metrics
-      puts "\n📈 Translation Metrics:"
-      puts "Total translations: #{metrics[:total_translations]}"
-      puts "Average time: #{metrics[:average_translation_time]}s"
-      puts "Error rate: #{metrics[:error_rate]}%"
-    end
+  def print_translator_metrics_if_enabled
+    return unless MistralTranslator.configuration.enable_metrics
 
-    # Top errors
+    metrics = MistralTranslator.metrics
+    puts "\n📈 Translation Metrics:"
+    puts "Total translations: #{metrics[:total_translations]}"
+    puts "Average time: #{metrics[:average_translation_time]}s"
+    puts "Error rate: #{metrics[:error_rate]}%"
+  end
+
+  def print_top_errors
     return unless @errors.any?
 
     puts "\n❌ Top Errors:"
@@ -384,8 +409,8 @@ if File.exist?(sample_csv)
   rescue StandardError => e
     puts "CSV processing error: #{e.message}"
   ensure
-    File.delete(sample_csv) if File.exist?(sample_csv)
-    File.delete("tmp_products_en.csv") if File.exist?("tmp_products_en.csv")
+    FileUtils.rm_f(sample_csv)
+    FileUtils.rm_f("tmp_products_en.csv")
   end
 end
 
@@ -455,8 +480,8 @@ begin
 rescue StandardError => e
   puts "JSON processing error: #{e.message}"
 ensure
-  File.delete(json_file) if File.exist?(json_file)
-  File.delete("tmp_app_en.json") if File.exist?("tmp_app_en.json")
+  FileUtils.rm_f(json_file)
+  FileUtils.rm_f("tmp_app_en.json")
 end
 
 # EXEMPLE 4: Robust batch
@@ -478,7 +503,7 @@ robust_processor = RobustBatchProcessor.new(
 )
 
 begin
-  results = robust_processor.process_with_monitoring!
+  robust_processor.process_with_monitoring!
 rescue StandardError => e
   puts "Robust batch error: #{e.message}"
 end
