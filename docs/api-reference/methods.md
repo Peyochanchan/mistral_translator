@@ -1,4 +1,4 @@
-> **Navigation :** [🏠 Home](README.md) • [📖 API Reference](api-reference/methods.md) • [⚡ Advanced Usage](advanced-usage/translations.md) • [🛤️ Rails Integration](rails-integration/setup.md) • [💻 Examples](../examples/) • [📊 GitHub](https://github.com/peyochanchan/mistral_translator)
+> **Navigation :** [🏠 Home](README.md) • [📖 API Reference](api-reference/methods.md) • [⚡ Advanced Usage](advanced-usage/translations.md) • [🛤️ Rails Integration](rails-integration/setup.md)
 
 ---
 
@@ -16,7 +16,7 @@
 
 ## Méthodes Principales
 
-### `MistralTranslator.translate(text, from:, to:, **options)`
+### `translate(text, from:, to:, **options)`
 
 Traduit un texte d'une langue vers une autre.
 
@@ -52,7 +52,7 @@ MistralTranslator.translate(
 
 ---
 
-### `MistralTranslator.translate_auto(text, to:, **options)`
+### `translate_auto(text, to:, **options)`
 
 Traduit un texte avec détection automatique de la langue source.
 
@@ -74,7 +74,7 @@ MistralTranslator.translate_auto("¡Hola mundo!", to: "fr")
 
 ---
 
-### `MistralTranslator.translate_to_multiple(text, from:, to:, **options)`
+### `translate_to_multiple(text, from:, to:, **options)`
 
 Traduit un texte vers plusieurs langues simultanément.
 
@@ -107,7 +107,7 @@ results = MistralTranslator.translate_to_multiple(
 
 ---
 
-### `MistralTranslator.translate_batch(texts, from:, to:, **options)`
+### `translate_batch(texts, from:, to:, **options)`
 
 Traduit plusieurs textes en une fois pour optimiser les performances.
 
@@ -137,7 +137,7 @@ results = MistralTranslator.translate_batch(texts, from: "fr", to: "en")
 
 ## Méthodes de Résumé
 
-### `MistralTranslator.summarize(text, language:, max_words:, **options)`
+### `summarize(text, language:, max_words:, **options)`
 
 Crée un résumé d'un texte dans une langue donnée.
 
@@ -165,7 +165,7 @@ resume = MistralTranslator.summarize(
 
 ---
 
-### `MistralTranslator.summarize_and_translate(text, from:, to:, max_words:, **options)`
+### `summarize_and_translate(text, from:, to:, max_words:, **options)`
 
 Résume et traduit un texte simultanément.
 
@@ -193,7 +193,7 @@ result = MistralTranslator.summarize_and_translate(
 
 ---
 
-### `MistralTranslator.summarize_tiered(text, language:, short:, medium:, long:, **options)`
+### `summarize_tiered(text, language:, short:, medium:, long:, **options)`
 
 Crée plusieurs résumés de longueurs différentes.
 
@@ -228,7 +228,7 @@ resumes = MistralTranslator.summarize_tiered(
 
 ---
 
-### `MistralTranslator.summarize_to_multiple(text, languages:, max_words:, **options)`
+### `summarize_to_multiple(text, languages:, max_words:, **options)`
 
 Crée un résumé dans plusieurs langues.
 
@@ -259,7 +259,7 @@ resumes = MistralTranslator.summarize_to_multiple(
 
 ## Méthodes de Configuration
 
-### `MistralTranslator.configure { |config| ... }`
+### `configure { |config| ... }`
 
 Configure la gem avec un bloc.
 
@@ -274,13 +274,13 @@ MistralTranslator.configure do |config|
 end
 ```
 
-### `MistralTranslator.configuration`
+### `configuration`
 
 Accède à l'objet de configuration actuel.
 
 **Retour:** Configuration - L'instance de configuration
 
-### `MistralTranslator.reset_configuration!`
+### `reset_configuration!`
 
 Remet la configuration aux valeurs par défaut.
 
@@ -288,19 +288,19 @@ Remet la configuration aux valeurs par défaut.
 
 ## Méthodes Utilitaires
 
-### `MistralTranslator.supported_locales`
+### `supported_locales`
 
 Retourne la liste des codes de langue supportés.
 
 **Retour:** Array<String> - Liste des codes (ex: ["fr", "en", "es"])
 
-### `MistralTranslator.supported_languages`
+### `supported_languages`
 
 Retourne une chaîne formatée des langues supportées.
 
 **Retour:** String - Liste formatée (ex: "fr (français), en (english)")
 
-### `MistralTranslator.health_check`
+### `health_check`
 
 Vérifie la connectivité avec l'API Mistral.
 
@@ -320,7 +320,7 @@ else
 end
 ```
 
-### `MistralTranslator.version_info`
+### `version_info`
 
 Retourne les informations de version détaillées.
 
@@ -336,7 +336,7 @@ Retourne les informations de version détaillées.
 
 ## Méthodes de Métriques
 
-### `MistralTranslator.metrics`
+### `metrics`
 
 Retourne les métriques de performance (si activées).
 
