@@ -104,5 +104,3 @@ Important:
 
 **Advanced Usage Navigation:**
 [← Translations](translations.md) | [Batch Processing](batch-processing.md) | [Error Handling](error-handling.md) | [Monitoring](monitoring.md) | [Summarization](summarization.md) →
-
-[↑ Back to Documentation Home](../README.md)

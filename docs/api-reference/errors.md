@@ -670,5 +670,3 @@ Cette approche robuste de gestion des erreurs garantit que votre application res
 ---
 
 [← Methods](methods.md) | [Errors](errors.md) | [Callbacks](callbacks.md) | [Configuration](configuration.md) →
-
-[↑ Back to Documentation Home](../README.md)

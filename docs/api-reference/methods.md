@@ -536,5 +536,3 @@ MistralTranslator::RecordTranslation.translate_record(
 ---
 
 [← Methods](methods.md) | [Errors](errors.md) | [Callbacks](callbacks.md) | [Configuration](configuration.md) →
-
-[↑ Back to Documentation Home](../README.md)

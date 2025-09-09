@@ -82,5 +82,3 @@ ActionText est automatiquement détecté et le HTML est préservé lors de la tr
 
 **Rails Integration Navigation:**
 [← Setup](setup.md) | [Adapters](adapters.md) | [Jobs](jobs.md) | [Controllers](controllers.md) →
-
-[↑ Back to Documentation Home](../README.md)
