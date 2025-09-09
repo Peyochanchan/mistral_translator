@@ -54,3 +54,8 @@ translator.translate(text, from: from, to: to, context: ctx, glossary: glos)
 
 - Guides mis à jour: Getting Started, Traductions Avancées, Intégration Rails
 - Exemple: `examples/basic_usage.rb`
+
+---
+
+**Documentation Navigation:**
+[← Installation](installation.md) | [Getting Started](getting-started.md) | [Migration Guide](migration-0.1.0-to-0.2.0.md) →

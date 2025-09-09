@@ -535,4 +535,4 @@ MistralTranslator::RecordTranslation.translate_record(
 
 ---
 
-[← Methods](methods.md) | [Errors](errors.md) | [Callbacks](callbacks.md) | [Configuration](configuration.md) →
+[← Methods](api-reference/methods.md) | [Errors](api-reference/errors.md) | [Callbacks](api-reference/callbacks.md) | [Configuration](api-reference/configuration.md) →
