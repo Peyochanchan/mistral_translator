@@ -1,4 +1,6 @@
-> **Navigation :** [🏠 Home](README.md) • [📖 API Reference](api-reference/) • [⚡ Advanced Usage](advanced-usage/) • [🛤️ Rails Integration](rails-integration/) • [💻 Examples](../examples/)
+> **Navigation :** [🏠 Home](README.md) • [📖 API Reference](api-reference/methods.md) • [⚡ Advanced Usage](advanced-usage/translations.md) • [🛤️ Rails Integration](rails-integration/setup.md) • [💻 Examples](../examples/) • [📊 GitHub](https://github.com/peyochanchan/mistral_translator)
+
+---
 
 # Migration 0.1.0 → 0.2.0
 
