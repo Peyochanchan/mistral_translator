@@ -3,7 +3,7 @@
 Ruby gem for AI-powered translation and text summarization using Mistral AI API, with advanced Rails support.
 
 [![Gem Version](https://badge.fury.io/rb/mistral_translator.svg)](https://badge.fury.io/rb/mistral_translator)
-[![Ruby](https://github.com/peyochanchan/mistral_translator/actions/workflows/ruby.yml/badge.svg)](https://github.com/peyochanchan/mistral_translator/actions/workflows/ruby.yml)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Quick Start

@@ -1,4 +1,4 @@
-{% include_relative _includes/nav.md %}
+> **Navigation :** [🏠 Home](README.md) • [📖 API Reference](api-reference/) • [⚡ Advanced Usage](advanced-usage/) • [🛤️ Rails Integration](rails-integration/) • [💻 Examples](../examples/)
 
 # Configuration Rails
 
