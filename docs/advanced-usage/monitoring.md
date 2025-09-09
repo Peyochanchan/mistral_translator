@@ -130,4 +130,4 @@ quality:
 ---
 
 **Advanced Usage Navigation:**
-[← Translations](translations.md) | [Batch Processing](batch-processing.md) | [Error Handling](error-handling.md) | [Monitoring](monitoring.md) | [Summarization](summarization.md) →
+[← Translations](advanced-usage/translations.md) | [Batch Processing](advanced-usage/batch-processing.md) | [Error Handling](advanced-usage/error-handling.md) | [Monitoring](advanced-usage/monitoring.md) | [Summarization](advanced-usage/summarization.md) →

@@ -227,4 +227,5 @@ end
 
 ---
 
+**API-Reference Navigation:**
 [← Methods](api-reference/methods.md) | [Errors](api-reference/errors.md) | [Callbacks](api-reference/callbacks.md) | [Configuration](api-reference/configuration.md) →

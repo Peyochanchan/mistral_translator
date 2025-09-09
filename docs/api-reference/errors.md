@@ -669,4 +669,5 @@ Cette approche robuste de gestion des erreurs garantit que votre application res
 
 ---
 
-[← Methods](methods.md) | [Errors](errors.md) | [Callbacks](callbacks.md) | [Configuration](configuration.md) →
+**API-Reference Navigation:**
+[← Methods](api-reference/methods.md) | [Errors](api-reference/errors.md) | [Callbacks](api-reference/callbacks.md) | [Configuration](api-reference/configuration.md) →
