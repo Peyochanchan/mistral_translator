@@ -4,45 +4,52 @@ require_relative "mistral_translator/version"
 require_relative "mistral_translator/errors"
 require_relative "mistral_translator/configuration"
 require_relative "mistral_translator/locale_helper"
+require_relative "mistral_translator/prompt_helpers"
 require_relative "mistral_translator/prompt_builder"
 require_relative "mistral_translator/response_parser"
+require_relative "mistral_translator/client_helpers"
+require_relative "mistral_translator/security"
 require_relative "mistral_translator/client"
+require_relative "mistral_translator/translator_helpers"
 require_relative "mistral_translator/translator"
 require_relative "mistral_translator/summarizer"
+require_relative "mistral_translator/adapters"
+require_relative "mistral_translator/helpers_extensions"
+require_relative "mistral_translator/helpers"
 
 module MistralTranslator
   class << self
     # Méthodes de convenance pour accès direct
-    def translate(text, from:, to:)
-      translator.translate(text, from: from, to: to)
+    def translate(text, from:, to:, **)
+      translator.translate(text, from: from, to: to, **)
     end
 
-    def translate_to_multiple(text, from:, to:)
-      translator.translate_to_multiple(text, from: from, to: to)
+    def translate_to_multiple(text, from:, to:, **)
+      translator.translate_to_multiple(text, from: from, to: to, **)
     end
 
-    def translate_batch(texts, from:, to:)
-      translator.translate_batch(texts, from: from, to: to)
+    def translate_batch(texts, from:, to:, **)
+      translator.translate_batch(texts, from: from, to: to, **)
     end
 
-    def translate_auto(text, to:)
-      translator.translate_auto(text, to: to)
+    def translate_auto(text, to:, **)
+      translator.translate_auto(text, to: to, **)
     end
 
-    def summarize(text, language: "fr", max_words: 250)
-      summarizer.summarize(text, language: language, max_words: max_words)
+    def summarize(text, language: "fr", max_words: 250, **)
+      summarizer.summarize(text, language: language, max_words: max_words, **)
     end
 
-    def summarize_and_translate(text, from:, to:, max_words: 250)
-      summarizer.summarize_and_translate(text, from: from, to: to, max_words: max_words)
+    def summarize_and_translate(text, from:, to:, max_words: 250, **)
+      summarizer.summarize_and_translate(text, from: from, to: to, max_words: max_words, **)
     end
 
-    def summarize_to_multiple(text, languages:, max_words: 250)
-      summarizer.summarize_to_multiple(text, languages: languages, max_words: max_words)
+    def summarize_to_multiple(text, languages:, max_words: 250, **)
+      summarizer.summarize_to_multiple(text, languages: languages, max_words: max_words, **)
     end
 
-    def summarize_tiered(text, language: "fr", short: 50, medium: 150, long: 300)
-      summarizer.summarize_tiered(text, language: language, short: short, medium: medium, long: long)
+    def summarize_tiered(text, **)
+      summarizer.summarize_tiered(text, **)
     end
 
     # Méthodes utilitaires
@@ -79,9 +86,28 @@ module MistralTranslator
       VERSION
     end
 
+    def version_info
+      {
+        gem_version: VERSION,
+        api_version: API_VERSION,
+        supported_model: SUPPORTED_MODEL,
+        ruby_version: RUBY_VERSION,
+        platform: RUBY_PLATFORM
+      }
+    end
+
+    # Métriques (nouvelles)
+    def metrics
+      configuration.metrics
+    end
+
+    def reset_metrics!
+      configuration.reset_metrics!
+    end
+
     # Health check
     def health_check
-      client.complete("Hello", max_tokens: 10)
+      client.complete("Hello", max_tokens: 10, context: {})
       { status: :ok, message: "API connection successful" }
     rescue AuthenticationError
       { status: :error, message: "Authentication failed - check your API key" }
@@ -113,12 +139,12 @@ module MistralTranslator
     end
 
     module ClassMethods
-      def mistral_translate(text, from:, to:)
-        MistralTranslator.translate(text, from: from, to: to)
+      def mistral_translate(text, from:, to:, **)
+        MistralTranslator.translate(text, from: from, to: to, **)
       end
 
-      def mistral_summarize(text, language: "fr", max_words: 250)
-        MistralTranslator.summarize(text, language: language, max_words: max_words)
+      def mistral_summarize(text, language: "fr", max_words: 250, **)
+        MistralTranslator.summarize(text, language: language, max_words: max_words, **)
       end
     end
   end
@@ -127,12 +153,12 @@ end
 # Extensions optionnelles pour String
 if ENV["MISTRAL_TRANSLATOR_EXTEND_STRING"]
   class String
-    def mistral_translate(from:, to:)
-      MistralTranslator.translate(self, from: from, to: to)
+    def mistral_translate(from:, to:, **)
+      MistralTranslator.translate(self, from: from, to: to, **)
     end
 
-    def mistral_summarize(language: "fr", max_words: 250)
-      MistralTranslator.summarize(self, language: language, max_words: max_words)
+    def mistral_summarize(language: "fr", max_words: 250, **)
+      MistralTranslator.summarize(self, language: language, max_words: max_words, **)
     end
   end
 end

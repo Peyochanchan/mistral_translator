@@ -36,13 +36,37 @@ module MistralTranslator
       private
 
       def log(level, message, sensitive)
+        # Sanitiser le message si sensible
+        sanitized_message = sensitive ? sanitize_log_data(message) : message
+
         # En mode Rails, utiliser le logger Rails
         if defined?(Rails) && Rails.respond_to?(:logger)
-          Rails.logger.public_send(level, "[MistralTranslator] #{message}")
-        # Sinon, utiliser puts seulement si pas sensible et debug activé
-        elsif !sensitive && ENV["MISTRAL_TRANSLATOR_DEBUG"] == "true"
-          puts "[MistralTranslator] #{message}"
+          Rails.logger.public_send(level, "[MistralTranslator] #{sanitized_message}")
+        # Sinon, utiliser puts si debug activé (même pour les messages sensibles, ils sont déjà sanitisés)
+        elsif ENV["MISTRAL_TRANSLATOR_DEBUG"] == "true"
+          puts "[MistralTranslator] #{sanitized_message}"
         end
+      end
+
+      def sanitize_log_data(data)
+        return data unless data.is_a?(String)
+
+        # Masquer les clés API Bearer
+        data = data.gsub(/Bearer\s+[A-Za-z0-9_-]+/, "Bearer [REDACTED]")
+
+        # Masquer les clés API dans les URLs
+        data = data.gsub(/[?&]api_key=[A-Za-z0-9_-]+/, "?api_key=[REDACTED]")
+
+        # Masquer les tokens d'authentification
+        data = data.gsub(/token=\s*[A-Za-z0-9_-]+/, "token=[REDACTED]")
+        data = data.gsub(/token:\s*[A-Za-z0-9_-]+/, "token: [REDACTED]")
+
+        # Masquer les mots de passe
+        data = data.gsub(/password=\s*[^\s&]+/, "password=[REDACTED]")
+        data = data.gsub(/password:\s*[^\s&]+/, "password: [REDACTED]")
+
+        # Masquer les secrets
+        data.gsub(/secret[=:]\s*[A-Za-z0-9_-]+/, "secret=[REDACTED]")
       end
 
       def should_log_warning?(key, ttl)

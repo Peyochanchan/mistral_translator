@@ -4,144 +4,147 @@ require "net/http"
 require "json"
 require "uri"
 require_relative "logger"
+require_relative "client_helpers"
+require_relative "security"
 
 module MistralTranslator
   class Client
-    def initialize(api_key: nil)
+    include ClientHelpers::RequestHandler
+    include ClientHelpers::ErrorHandler
+    include ClientHelpers::BatchHandler
+    include ClientHelpers::LoggingHelper
+
+    def initialize(api_key: nil, rate_limiter: nil)
       @api_key = api_key || MistralTranslator.configuration.api_key!
       @base_uri = MistralTranslator.configuration.api_url
       @model = MistralTranslator.configuration.model
       @retry_delays = MistralTranslator.configuration.retry_delays
+      @rate_limiter = rate_limiter || Security::BasicRateLimiter.new
     end
 
-    def complete(prompt, max_tokens: nil, temperature: nil)
-      response = make_request_with_retry(prompt, max_tokens, temperature)
-      parsed_response = JSON.parse(response.body)
+    def complete(prompt, max_tokens: nil, temperature: nil, context: {})
+      # Vérifier le rate limit avant de faire la requête
+      @rate_limiter.wait_and_record!
 
-      content = parsed_response.dig("choices", 0, "message", "content")
-      raise InvalidResponseError, "No content in API response" if content.nil? || content.empty?
+      ctx = (context || {}).merge(operation: :complete)
+      start_time = Time.now
+      trigger_translation_start_callback(ctx, prompt)
 
+      response = make_request_with_retry(prompt, max_tokens, temperature, ctx)
+      content = extract_content_from_response(response)
+
+      trigger_translation_complete_callback(ctx, prompt, content, start_time)
       content
     rescue JSON::ParserError => e
-      raise InvalidResponseError, "Invalid JSON in API response: #{e.message}"
+      handle_json_parse_error(e, ctx)
     rescue NoMethodError => e
-      raise InvalidResponseError, "Invalid response structure: #{e.message}"
+      handle_response_structure_error(e, ctx)
     end
 
-    def chat(prompt, max_tokens: nil, temperature: nil)
-      response = make_request_with_retry(prompt, max_tokens, temperature)
-      parsed_response = JSON.parse(response.body)
+    def chat(prompt, max_tokens: nil, temperature: nil, context: {})
+      # Vérifier le rate limit avant de faire la requête
+      @rate_limiter.wait_and_record!
 
-      parsed_response.dig("choices", 0, "message", "content")
+      ctx = (context || {}).merge(operation: :chat)
+      start_time = Time.now
+      trigger_translation_start_callback(ctx, prompt)
+
+      response = make_request_with_retry(prompt, max_tokens, temperature, ctx)
+      content = extract_chat_content_from_response(response)
+
+      trigger_translation_complete_callback(ctx, prompt, content, start_time)
+      content
     rescue JSON::ParserError => e
-      raise InvalidResponseError, "JSON parse error: #{e.message}"
+      handle_json_parse_error(e, ctx)
     rescue NoMethodError => e
-      raise InvalidResponseError, "Invalid response structure: #{e.message}"
+      handle_response_structure_error(e, ctx)
+    end
+
+    # Nouvelle méthode pour traduction par batch optimisée
+    def translate_batch(requests, batch_size: 5)
+      start_time = Time.now
+      results = []
+      success_count = 0
+      error_count = 0
+
+      requests.each_slice(batch_size) do |batch|
+        batch_results = process_batch_slice(batch)
+        results.concat(batch_results[:results])
+        success_count += batch_results[:success_count]
+        error_count += batch_results[:error_count]
+
+        # Délai entre les batches pour éviter les rate limits
+        sleep(2) unless batch == requests.last(batch_size)
+      end
+
+      total_duration = Time.now - start_time
+      MistralTranslator.configuration.trigger_batch_complete(
+        requests.size,
+        total_duration,
+        success_count,
+        error_count
+      )
+
+      results
     end
 
     private
 
-    def make_request_with_retry(prompt, max_tokens, temperature, attempt = 0)
-      response = make_request(prompt, max_tokens, temperature)
-
-      # Vérifier les erreurs dans la réponse
-      check_response_for_errors(response)
-
-      if rate_limit_exceeded?(response)
-        handle_rate_limit(prompt, max_tokens, temperature, attempt)
-      else
-        response
-      end
+    def trigger_translation_start_callback(context, prompt)
+      MistralTranslator.configuration.trigger_translation_start(
+        context[:from_locale],
+        context[:to_locale],
+        prompt&.length || 0
+      )
     end
 
-    def make_request(prompt, max_tokens, temperature)
-      uri = URI("#{@base_uri}/v1/chat/completions")
+    def extract_content_from_response(response)
+      parsed_response = JSON.parse(response.body)
+      content = parsed_response.dig("choices", 0, "message", "content")
+      raise InvalidResponseError, "No content in API response" if content.nil? || content.empty?
 
-      request_body = build_request_body(prompt, max_tokens, temperature)
-
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = (uri.scheme == "https")
-      http.read_timeout = 60 # 60 secondes de timeout
-
-      request = Net::HTTP::Post.new(uri.path, headers)
-      request.body = request_body.to_json
-
-      response = http.request(request)
-      log_request_response(request_body, response)
-
-      response
-    rescue Net::ReadTimeout, Timeout::Error => e
-      raise ApiError, "Request timeout: #{e.message}"
-    rescue Net::HTTPError => e
-      raise ApiError, "HTTP error: #{e.message}"
+      content
     end
 
-    def build_request_body(prompt, max_tokens, temperature)
-      body = {
-        model: @model,
-        messages: [{ role: "user", content: prompt }]
-      }
-
-      body[:max_tokens] = max_tokens if max_tokens
-      body[:temperature] = temperature if temperature
-
-      body
+    def extract_chat_content_from_response(response)
+      parsed_response = JSON.parse(response.body)
+      parsed_response.dig("choices", 0, "message", "content")
     end
 
-    def headers
-      {
-        "Authorization" => "Bearer #{@api_key}",
-        "Content-Type" => "application/json",
-        "User-Agent" => "mistral-translator-gem/#{MistralTranslator::VERSION}"
-      }
+    def trigger_translation_complete_callback(context, prompt, content, start_time)
+      duration = Time.now - start_time
+      MistralTranslator.configuration.trigger_translation_complete(
+        context[:from_locale],
+        context[:to_locale],
+        prompt&.length || 0,
+        content&.length || 0,
+        duration
+      )
     end
 
-    def check_response_for_errors(response)
-      case response.code.to_i
-      when 401
-        raise AuthenticationError, "Invalid API key"
-      when 429
-        # Rate limit sera géré séparément
-        nil
-      when 400..499
-        raise ApiError, "Client error (#{response.code})}"
-      when 500..599
-        raise ApiError, "Server error (#{response.code})}"
-      end
+    def handle_json_parse_error(error, context)
+      MistralTranslator.configuration.trigger_translation_error(
+        context[:from_locale],
+        context[:to_locale],
+        error,
+        context[:attempt] || 0
+      )
+      message = if context[:operation] == :chat
+                  "JSON parse error: #{error.message}"
+                else
+                  "Invalid JSON in API response: #{error.message}"
+                end
+      raise InvalidResponseError, message
     end
 
-    def rate_limit_exceeded?(response)
-      return true if response.code.to_i == 429
-
-      return false unless response.code.to_i == 200
-
-      body_content = response.body.to_s
-      return false if body_content.length > 1000
-
-      body_content.match?(/rate.?limit|quota.?exceeded/i)
-    end
-
-    def handle_rate_limit(prompt, max_tokens, temperature, attempt)
-      unless attempt < @retry_delays.length
-        raise RateLimitError, "API rate limit exceeded after #{@retry_delays.length} retries"
-      end
-
-      wait_time = @retry_delays[attempt]
-      log_rate_limit_retry(wait_time, attempt)
-      sleep(wait_time)
-      make_request_with_retry(prompt, max_tokens, temperature, attempt + 1)
-    end
-
-    def log_request_response(_request_body, response)
-      # Log seulement si mode verbose activé
-      Logger.debug_if_verbose("Request sent to API", sensitive: true)
-      Logger.debug_if_verbose("Response received: #{response.code}", sensitive: false)
-    end
-
-    def log_rate_limit_retry(wait_time, attempt)
-      message = "Rate limit exceeded, retrying in #{wait_time} seconds (attempt #{attempt + 1})"
-      # Log une seule fois par session pour éviter le spam
-      Logger.warn_once(message, key: "rate_limit_retry", sensitive: false, ttl: 60)
+    def handle_response_structure_error(error, context)
+      MistralTranslator.configuration.trigger_translation_error(
+        context[:from_locale],
+        context[:to_locale],
+        error,
+        context[:attempt] || 0
+      )
+      raise InvalidResponseError, "Invalid response structure: #{error.message}"
     end
   end
 end

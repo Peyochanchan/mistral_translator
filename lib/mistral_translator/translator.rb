@@ -1,9 +1,19 @@
 # frozen_string_literal: true
 
 require_relative "logger"
+require_relative "translator_helpers"
+require_relative "security"
 
 module MistralTranslator
   class Translator
+    include TranslatorHelpers::InputValidator
+    include TranslatorHelpers::RetryHandler
+    include TranslatorHelpers::LoggingHelper
+    include TranslatorHelpers::PromptHandler
+    include TranslatorHelpers::AnalysisHelper
+    include TranslatorHelpers::RequestHelper
+    include TranslatorHelpers::MultiTargetHelper
+
     DEFAULT_RETRY_COUNT = 3
     DEFAULT_RETRY_DELAY = 2
 
@@ -12,50 +22,77 @@ module MistralTranslator
     end
 
     # Traduction simple d'un texte vers une langue
-    def translate(text, from:, to:)
-      validate_inputs!(text, from, to)
+    def translate(text, from:, to:, **options)
+      # Validation basique des entrées
+      validated_text = Security::BasicValidator.validate_text!(text)
+
+      # Si le texte est vide, retourner directement une chaîne vide
+      return "" if validated_text.empty?
 
       source_locale = LocaleHelper.validate_locale!(from)
       target_locale = LocaleHelper.validate_locale!(to)
 
-      translate_with_retry(text, source_locale, target_locale)
+      # Si même langue source et cible, retourner le texte original
+      return validated_text if source_locale == target_locale
+
+      translate_with_retry(validated_text, source_locale, target_locale,
+                           context: options[:context],
+                           glossary: options[:glossary],
+                           preserve_html: options.fetch(:preserve_html, false))
     end
 
-    # Traduction vers plusieurs langues
-    def translate_to_multiple(text, from:, to:)
+    # Traduction avec score de confiance (expérimental)
+    def translate_with_confidence(text, from:, to:, context: nil, glossary: nil)
+      result = begin
+        translate(text, from: from, to: to, context: context, glossary: glossary)
+      rescue EmptyTranslationError
+        ""
+      end
+
+      # Score de confiance basique basé sur la longueur et la cohérence
+      confidence = calculate_confidence_score(text, result, from, to)
+
+      {
+        translation: result,
+        confidence: confidence,
+        metadata: {
+          source_locale: from,
+          target_locale: to,
+          original_length: text.length,
+          translated_length: result.length
+        }
+      }
+    end
+
+    # Traduction vers plusieurs langues avec support du batch
+    def translate_to_multiple(text, from:, to:, **options)
       validate_translation_inputs!(text, from, to)
 
       source_locale = LocaleHelper.validate_locale!(from)
       target_locales = Array(to).map { |locale| LocaleHelper.validate_locale!(locale) }
 
-      results = {}
-
-      target_locales.each_with_index do |target_locale, index|
-        # Délai entre les requêtes, mais pas avant la première
-        sleep(DEFAULT_RETRY_DELAY) if index.positive?
-        results[target_locale] = translate_with_retry(text, source_locale, target_locale)
+      if options[:use_batch] && target_locales.size > 3
+        translate_to_multiple_batch(text, source_locale, target_locales, context: options[:context],
+                                                                         glossary: options[:glossary])
+      else
+        translate_to_multiple_sequential(text, source_locale, target_locales, context: options[:context],
+                                                                              glossary: options[:glossary])
       end
-
-      results
     end
 
     # Traduction en lot (plusieurs textes vers une langue)
-    def translate_batch(texts, from:, to:)
-      validate_batch_inputs!(texts, from, to)
-
+    def translate_batch(texts, from:, to:, context: nil, glossary: nil)
+      validated_texts = Security::BasicValidator.validate_batch!(texts)
       source_locale = LocaleHelper.validate_locale!(from)
       target_locale = LocaleHelper.validate_locale!(to)
 
-      # Pour des lots importants, on peut les découper
-      if texts.length > 10
-        translate_large_batch(texts, source_locale, target_locale)
-      else
-        translate_small_batch(texts, source_locale, target_locale)
-      end
+      return handle_same_language_batch(validated_texts) if source_locale == target_locale
+
+      process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
     end
 
-    # Auto-détection de la langue source (utilise l'API pour détecter)
-    def translate_auto(text, to:)
+    # Auto-détection de la langue source avec support du contexte
+    def translate_auto(text, to:, context: nil, glossary: nil)
       target_locale = LocaleHelper.validate_locale!(to)
 
       # Premier appel pour détecter la langue
@@ -63,115 +100,154 @@ module MistralTranslator
       detection_response = @client.complete(detection_prompt)
       detected_language = parse_language_detection(detection_response)
 
-      # Puis traduction normale
-      translate(text, from: detected_language, to: target_locale)
+      # Vérifier que la langue détectée est différente de la cible
+      if detected_language == target_locale
+        # Si même langue, retourner le texte original
+        return text
+      end
+
+      # Puis traduction normale avec contexte
+      translate(text, from: detected_language, to: target_locale, context: context, glossary: glossary)
     end
 
     private
 
-    def translate_with_retry(text, source_locale, target_locale, attempt = 0)
-      prompt = PromptBuilder.translation_prompt(text, source_locale, target_locale)
-      raw_response = @client.complete(prompt)
+    # Ces méthodes sont héritées via MultiTargetHelper
 
-      result = ResponseParser.parse_translation_response(raw_response)
-      raise EmptyTranslationError if result.nil? || result[:translated].nil?
+    def handle_same_language_batch(validated_texts)
+      validated_texts.each_with_index.to_h { |text, index| [index, text] }
+    end
 
-      result[:translated]
+    def process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
+      results = {}
+      batch_config = { source_locale: source_locale, target_locale: target_locale, context: context,
+                       glossary: glossary }
+      requests = build_batch_requests(validated_texts, batch_config, results)
+
+      process_batch_requests(requests, results) if requests.any?
+
+      results
+    end
+
+    def build_batch_requests(validated_texts, batch_config, results)
+      requests = []
+
+      validated_texts.each_with_index do |text, index|
+        if text.nil? || text.empty?
+          results[index] = ""
+        else
+          requests << create_batch_request(text, batch_config, index)
+        end
+      end
+
+      requests
+    end
+
+    def create_batch_request(text, batch_config, index)
+      {
+        prompt: build_translation_prompt(text, batch_config[:source_locale], batch_config[:target_locale],
+                                         context: batch_config[:context], glossary: batch_config[:glossary]),
+        from: batch_config[:source_locale],
+        to: batch_config[:target_locale],
+        index: index,
+        original_text: text
+      }
+    end
+
+    def process_batch_requests(requests, results)
+      batch_results = @client.translate_batch(requests, batch_size: 10)
+      batch_results.each do |result|
+        process_batch_result(result, results)
+      end
+    end
+
+    def process_batch_result(result, results)
+      index = result[:original_request][:index]
+      results[index] = (parse_batch_response(result[:result]) if result[:success])
+    end
+
+    def parse_batch_response(response)
+      parsed_result = ResponseParser.parse_translation_response(response)
+      parsed_result[:translated] if parsed_result
+    rescue EmptyTranslationError
+      ""
+    end
+
+    def translate_with_retry(text, source_locale, target_locale, attempt = 0, **options)
+      prompt = build_prompt_for_retry(text, source_locale, target_locale, **options)
+      request_context = build_request_context(source_locale, target_locale, attempt)
+
+      raw_response = perform_client_request(prompt, request_context)
+      extract_translated_text!(raw_response)
     rescue EmptyTranslationError, InvalidResponseError => e
-      raise e unless attempt < DEFAULT_RETRY_COUNT
-
-      wait_time = DEFAULT_RETRY_DELAY * (2**attempt) # Backoff exponentiel
-      log_retry(e, attempt + 1, wait_time)
-      sleep(wait_time)
-      translate_with_retry(text, source_locale, target_locale, attempt + 1)
-    rescue RateLimitError => e
+      handle_retryable_error!(e, attempt) do
+        translate_with_retry(text, source_locale, target_locale, attempt + 1, **options)
+      end
+    rescue RateLimitError
       log_rate_limit_hit(source_locale, target_locale)
       sleep(DEFAULT_RETRY_DELAY)
       retry
     end
 
-    def translate_small_batch(texts, source_locale, target_locale)
-      prompt = PromptBuilder.bulk_translation_prompt(texts, source_locale, target_locale)
-      raw_response = @client.complete(prompt)
+    # Ces méthodes sont héritées via RequestHelper
 
-      results = ResponseParser.parse_bulk_translation_response(raw_response)
+    # Log via LoggingHelper
 
-      # Retourner un hash indexé par l'ordre original
-      results.each_with_object({}) do |result, hash|
-        original_index = result[:index] - 1 # L'API retourne 1-indexed
-        hash[original_index] = result[:translated]
+    def build_translation_prompt(text, source_locale, target_locale, **options)
+      base_prompt = PromptBuilder.translation_prompt(text, source_locale, target_locale,
+                                                     preserve_html: options.fetch(:preserve_html, false))
+
+      # Enrichir le prompt avec le contexte et le glossaire
+      context_present = options[:context] && !options[:context].to_s.strip.empty?
+      glossary_present =
+        (options[:glossary].is_a?(Hash) && options[:glossary].any?) ||
+        (options[:glossary].is_a?(String) && !options[:glossary].to_s.strip.empty?)
+      if context_present || glossary_present
+        enrich_prompt_with_context(base_prompt, options[:context], options[:glossary])
+      else
+        base_prompt
       end
     end
 
-    def translate_large_batch(texts, source_locale, target_locale)
-      results = {}
+    def enrich_prompt_with_context(base_prompt, context, glossary)
+      enriched_parts = []
+      context_part = build_context_enrichment(context)
+      glossary_part = build_glossary_enrichment(glossary)
+      enriched_parts << context_part if context_part
+      enriched_parts << glossary_part if glossary_part
 
-      texts.each_slice(10).with_index do |batch, batch_index|
-        sleep(DEFAULT_RETRY_DELAY) if batch_index.positive? # Délai entre les batches
+      return base_prompt if enriched_parts.empty?
 
-        batch_results = translate_small_batch(batch, source_locale, target_locale)
-
-        # Ajuster les index pour le batch
-        batch_results.each do |local_index, translation|
-          global_index = (batch_index * 10) + local_index
-          results[global_index] = translation
-        end
-      end
-
-      results
+      enriched_context = enriched_parts.join("\n")
+      base_prompt.sub("RÈGLES :", "#{enriched_context}\n\nRÈGLES :")
     end
 
-    def build_language_detection_prompt(text)
-      PromptBuilder.language_detection_prompt(text)
+    def build_context_enrichment(context)
+      return nil if context.nil? || context.to_s.strip.empty?
+
+      "CONTEXTE : #{context}"
     end
 
-    def parse_language_detection(response)
-      json_content = response.match(/\{.*\}/m)&.[](0)
-      return "en" unless json_content # Défaut en anglais si détection échoue
+    def build_glossary_enrichment(glossary)
+      return nil if glossary.nil?
+      return build_glossary_hash(glossary) if glossary.is_a?(Hash)
+      return build_glossary_string(glossary) if glossary.is_a?(String)
 
-      data = JSON.parse(json_content)
-      detected = data["detected_language"]
-
-      LocaleHelper.locale_supported?(detected) ? detected : "en"
-    rescue JSON::ParserError
-      "en" # Défaut en anglais si parsing échoue
+      nil
     end
 
-    def validate_inputs!(text, from, to)
-      raise ArgumentError, "Text cannot be nil or empty" if text.nil? || text.empty?
-      raise ArgumentError, "Source language cannot be nil" if from.nil?
-      raise ArgumentError, "Target language cannot be nil" if to.nil?
-      raise ArgumentError, "Source and target languages cannot be the same" if from == to
+    def build_glossary_hash(glossary_hash)
+      return nil if glossary_hash.empty?
+
+      glossary_text = glossary_hash.map { |key, value| "#{key} → #{value}" }.join(", ")
+      "GLOSSAIRE (à respecter strictement) : #{glossary_text}"
     end
 
-    def validate_translation_inputs!(text, from, to)
-      # Convertir to en array pour la validation
-      target_languages = Array(to)
-      raise ArgumentError, "Target languages cannot be empty" if target_languages.empty?
+    def build_glossary_string(glossary_string)
+      value = glossary_string.to_s.strip
+      return nil if value.empty?
 
-      validate_inputs!(text, from, target_languages.first)
-    end
-
-    def validate_batch_inputs!(texts, from, to)
-      raise ArgumentError, "Texts array cannot be nil or empty" if texts.nil? || texts.empty?
-      raise ArgumentError, "Source language cannot be nil" if from.nil?
-      raise ArgumentError, "Target language cannot be nil" if to.nil?
-
-      texts.each_with_index do |text, index|
-        raise ArgumentError, "Text at index #{index} cannot be nil or empty" if text.nil? || text.empty?
-      end
-    end
-
-    def log_retry(error, attempt, wait_time)
-      message = "#{error.class.name}: #{error.message}. Retry #{attempt}/#{DEFAULT_RETRY_COUNT} in #{wait_time}s"
-      # Log une seule fois par type d'erreur pour éviter le spam
-      Logger.warn_once(message, key: "retry_#{error.class.name}", sensitive: false, ttl: 120)
-    end
-
-    def log_rate_limit_hit(source, target)
-      message = "Rate limit hit for translation #{source} -> #{target}, retrying..."
-      # Log une seule fois par paire de langues
-      Logger.warn_once(message, key: "rate_limit_#{source}_#{target}", sensitive: false, ttl: 300)
+      "GLOSSAIRE : #{value}"
     end
   end
 end

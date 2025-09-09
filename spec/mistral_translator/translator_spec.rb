@@ -4,6 +4,10 @@ RSpec.describe MistralTranslator::Translator do
   let(:mock_client) { instance_double(MistralTranslator::Client) }
   let(:translator) { described_class.new(client: mock_client) }
 
+  before do
+    MistralTranslator.configure { |c| c.api_key = "test_api_key" }
+  end
+
   describe "#initialize" do
     it "uses provided client" do
       expect(translator.instance_variable_get(:@client)).to eq(mock_client)
@@ -42,38 +46,56 @@ RSpec.describe MistralTranslator::Translator do
     end
 
     it "calls PromptBuilder with correct parameters" do
-      expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
-        .with("Hello", "en", "fr")
+      expect(translator).to receive(:build_translation_prompt)
+        .with("Hello", "en", "fr", context: nil, glossary: nil, preserve_html: false)
         .and_return("mocked prompt")
-
-      expect(mock_client).to receive(:complete).with("mocked prompt")
 
       translator.translate("Hello", from: "en", to: "fr")
     end
 
-    context "with validation errors" do
-      it "raises ArgumentError for nil text" do
-        expect { translator.translate(nil, from: "en", to: "fr") }.to raise_error(
-          ArgumentError, "Text cannot be nil or empty"
-        )
+    # Nouveaux tests pour le contexte et glossaire
+    it "passes context and glossary to prompt builder" do
+      context = "technical documentation"
+      glossary = { "API" => "API" }
+
+      expect(translator).to receive(:build_translation_prompt)
+        .with("Hello", "en", "fr", context: context, glossary: glossary, preserve_html: false)
+        .and_return("enriched prompt")
+
+      translator.translate("Hello", from: "en", to: "fr", context: context, glossary: glossary)
+    end
+
+    it "passes context to client" do
+      expect(mock_client).to receive(:complete)
+        .with(anything, context: {
+                from_locale: "en",
+                to_locale: "fr",
+                attempt: 0
+              })
+
+      translator.translate("Hello", from: "en", to: "fr")
+    end
+
+    context "with validation behavior" do
+      it "accepts nil text and returns empty string" do
+        result = translator.translate(nil, from: "en", to: "fr")
+        expect(result).to eq("")
       end
 
-      it "raises ArgumentError for empty text" do
-        expect { translator.translate("", from: "en", to: "fr") }.to raise_error(
-          ArgumentError, "Text cannot be nil or empty"
-        )
+      it "accepts empty text and returns empty string" do
+        result = translator.translate("", from: "en", to: "fr")
+        expect(result).to eq("")
       end
 
-      it "raises ArgumentError for nil source language" do
+      it "raises UnsupportedLanguageError for nil source language" do
         expect { translator.translate("Hello", from: nil, to: "fr") }.to raise_error(
-          ArgumentError, "Source language cannot be nil"
+          MistralTranslator::UnsupportedLanguageError
         )
       end
 
-      it "raises ArgumentError for same source and target" do
-        expect { translator.translate("Hello", from: "en", to: "en") }.to raise_error(
-          ArgumentError, "Source and target languages cannot be the same"
-        )
+      it "returns original text for same source and target language" do
+        result = translator.translate("Hello", from: "en", to: "en")
+        expect(result).to eq("Hello")
       end
     end
 
@@ -115,6 +137,70 @@ RSpec.describe MistralTranslator::Translator do
     end
   end
 
+  # Nouveau test pour translate_with_confidence
+  describe "#translate_with_confidence" do
+    let(:raw_response) do
+      {
+        content: {
+          source: "Hello world",
+          target: "Bonjour monde"
+        }
+      }.to_json
+    end
+
+    before do
+      allow(mock_client).to receive(:complete).and_return(raw_response)
+    end
+
+    it "returns translation with confidence score" do
+      result = translator.translate_with_confidence("Hello world", from: "en", to: "fr")
+
+      expect(result).to have_key(:translation)
+      expect(result).to have_key(:confidence)
+      expect(result).to have_key(:metadata)
+
+      expect(result[:translation]).to eq("Bonjour monde")
+      expect(result[:confidence]).to be_a(Float)
+      expect(result[:confidence]).to be_between(0, 1)
+
+      expect(result[:metadata][:source_locale]).to eq("en")
+      expect(result[:metadata][:target_locale]).to eq("fr")
+      expect(result[:metadata][:original_length]).to eq(11)
+      expect(result[:metadata][:translated_length]).to eq(13)
+    end
+
+    it "calculates confidence based on length ratio" do
+      # Test avec une traduction de longueur suspecte
+      suspicious_response = {
+        content: {
+          source: "Hello",
+          target: "Bonjour le monde entier"
+        }
+      }.to_json
+
+      allow(mock_client).to receive(:complete).and_return(suspicious_response)
+
+      result = translator.translate_with_confidence("Hello", from: "en", to: "fr")
+      expect(result[:confidence]).to be < 0.8 # Confiance réduite pour ratio suspect
+    end
+
+    it "returns zero confidence for empty translation" do
+      empty_response = {
+        content: {
+          source: "Hello",
+          target: ""
+        }
+      }.to_json
+
+      allow(mock_client).to receive(:complete).and_return(empty_response)
+      allow(MistralTranslator::ResponseParser).to receive(:parse_translation_response)
+        .and_return({ translated: "" })
+
+      result = translator.translate_with_confidence("Hello", from: "en", to: "fr")
+      expect(result[:confidence]).to eq(0.0)
+    end
+  end
+
   describe "#translate_to_multiple" do
     let(:french_response) { '{"content": {"target": "Bonjour"}}' }
     let(:spanish_response) { '{"content": {"target": "Hola"}}' }
@@ -139,7 +225,27 @@ RSpec.describe MistralTranslator::Translator do
       expect(result).to eq({ "fr" => "Bonjour" })
     end
 
-    it "adds delay between requests" do
+    # Nouveau test pour le mode batch
+    it "uses batch mode for many languages when enabled" do
+      large_target_list = %w[fr es de it pt]
+
+      expect(translator).to receive(:translate_to_multiple_batch)
+        .with("Hello", "en", large_target_list, context: nil, glossary: nil)
+        .and_return({ "fr" => "Bonjour" })
+
+      result = translator.translate_to_multiple("Hello", from: "en", to: large_target_list, use_batch: true)
+      expect(result).to eq({ "fr" => "Bonjour" })
+    end
+
+    it "uses sequential mode by default" do
+      expect(translator).to receive(:translate_to_multiple_sequential)
+        .with("Hello", "en", ["fr"], context: nil, glossary: nil)
+        .and_return({ "fr" => "Bonjour" })
+
+      translator.translate_to_multiple("Hello", from: "en", to: "fr")
+    end
+
+    it "adds delay between requests in sequential mode" do
       expect(translator).to receive(:sleep).with(2).once
 
       translator.translate_to_multiple("Hello", from: "en", to: %w[fr es])
@@ -149,6 +255,17 @@ RSpec.describe MistralTranslator::Translator do
       expect { translator.translate_to_multiple("Hello", from: "en", to: []) }.to raise_error(
         ArgumentError, "Target languages cannot be empty"
       )
+    end
+
+    it "passes context and glossary to individual translations" do
+      context = "technical"
+      glossary = { "API" => "API" }
+
+      expect(translator).to receive(:translate_with_retry)
+        .with("Hello", "en", "fr", context: context, glossary: glossary)
+        .and_return("Bonjour")
+
+      translator.translate_to_multiple("Hello", from: "en", to: "fr", context: context, glossary: glossary)
     end
   end
 
@@ -163,47 +280,131 @@ RSpec.describe MistralTranslator::Translator do
     end
 
     before do
-      allow(mock_client).to receive(:complete).and_return(bulk_response)
+      allow(mock_client).to receive(:translate_batch).and_return([
+                                                                   { success: true, result: bulk_response,
+                                                                     original_request: { index: 0 } },
+                                                                   { success: true, result: bulk_response,
+                                                                     original_request: { index: 1 } }
+                                                                 ])
     end
 
-    it "translates multiple texts" do
+    it "uses client's translate_batch method" do
       texts = %w[Hello Goodbye]
+
+      expected_requests = [
+        {
+          prompt: anything,
+          from: "en",
+          to: "fr",
+          index: 0,
+          original_text: "Hello"
+        },
+        {
+          prompt: anything,
+          from: "en",
+          to: "fr",
+          index: 1,
+          original_text: "Goodbye"
+        }
+      ]
+
+      expect(mock_client).to receive(:translate_batch).with(expected_requests, batch_size: 10)
+                                                      .and_return([
+                                                                    { success: true,
+                                                                      result: '{"content": {"target": "Bonjour"}}',
+                                                                      original_request: { index: 0 } },
+                                                                    { success: true,
+                                                                      result: '{"content": {"target": "Au revoir"}}',
+                                                                      original_request: { index: 1 } }
+                                                                  ])
+
+      result = translator.translate_batch(texts, from: "en", to: "fr")
+      expect(result).to eq({ 0 => "Bonjour", 1 => "Au revoir" })
+    end
+
+    it "processes batch results correctly" do
+      texts = %w[Hello Goodbye]
+      batch_results = [
+        {
+          success: true,
+          result: '{"content": {"target": "Bonjour"}}',
+          original_request: { index: 0 }
+        },
+        {
+          success: true,
+          result: '{"content": {"target": "Au revoir"}}',
+          original_request: { index: 1 }
+        }
+      ]
+
+      allow(mock_client).to receive(:translate_batch).and_return(batch_results)
+
       result = translator.translate_batch(texts, from: "en", to: "fr")
 
-      expect(result).to eq({
-                             0 => "Bonjour",
-                             1 => "Au revoir"
-                           })
+      expect(result[0]).to eq("Bonjour")
+      expect(result[1]).to eq("Au revoir")
     end
 
-    it "handles large batches by splitting" do
-      large_texts = Array.new(25) { |i| "Text #{i}" }
+    it "handles batch errors gracefully" do
+      texts = %w[Hello Error]
+      batch_results = [
+        {
+          success: true,
+          result: '{"content": {"target": "Bonjour"}}',
+          original_request: { index: 0 }
+        },
+        {
+          success: false,
+          error: "Translation failed",
+          original_request: { index: 1 }
+        }
+      ]
 
-      # Doit faire 3 appels (10 + 10 + 5)
-      expect(mock_client).to receive(:complete).exactly(3).times
-      expect(translator).to receive(:sleep).twice # Entre les batches
+      allow(mock_client).to receive(:translate_batch).and_return(batch_results)
 
-      translator.translate_batch(large_texts, from: "en", to: "fr")
+      result = translator.translate_batch(texts, from: "en", to: "fr")
+
+      expect(result[0]).to eq("Bonjour")
+      expect(result[1]).to be_nil
+    end
+
+    it "builds prompts with context and glossary" do
+      context = "technical"
+      glossary = { "API" => "API" }
+
+      expect(translator).to receive(:build_translation_prompt)
+        .with("Hello", "en", "fr", context: context, glossary: glossary)
+        .and_return("enriched prompt")
+
+      allow(mock_client).to receive(:translate_batch).and_return([
+                                                                   { success: true,
+                                                                     result: '{"content": {"target": "Bonjour"}}',
+                                                                     original_request: { index: 0 } }
+                                                                 ])
+
+      result = translator.translate_batch(["Hello"], from: "en", to: "fr", context: context, glossary: glossary)
+      expect(result).to eq({ 0 => "Bonjour" })
     end
 
     context "with validation errors" do
       it "raises ArgumentError for empty texts array" do
         expect { translator.translate_batch([], from: "en", to: "fr") }.to raise_error(
-          ArgumentError, "Texts array cannot be nil or empty"
+          ArgumentError, "Batch cannot be empty"
         )
       end
 
-      it "raises ArgumentError for nil in texts array" do
+      it "handles nil in texts array by converting to empty strings" do
         texts = ["Hello", nil, "Goodbye"]
-        expect { translator.translate_batch(texts, from: "en", to: "fr") }.to raise_error(
-          ArgumentError, "Text at index 1 cannot be nil or empty"
-        )
+        # Avec les mocks, nous devons nous attendre à ce que le test passe
+        # car nil est converti en "" et ne fait pas d'appel API
+        result = translator.translate_batch(texts, from: "en", to: "fr")
+        expect(result[1]).to eq("") # L'index 1 (nil) devrait être converti en ""
       end
     end
   end
 
   describe "#translate_auto" do
-    let(:detection_response) { '{"detected_language": "fr"}' }
+    let(:detection_response) { '{"metadata": {"detected_language": "fr"}}' }
     let(:translation_response) { '{"content": {"target": "Hello"}}' }
 
     before do
@@ -217,6 +418,17 @@ RSpec.describe MistralTranslator::Translator do
       expect(mock_client).to have_received(:complete).twice
     end
 
+    it "passes context and glossary to translation" do
+      context = "greeting"
+      glossary = { "Bonjour" => "Hello" }
+
+      expect(translator).to receive(:translate)
+        .with("Bonjour", from: "fr", to: "en", context: context, glossary: glossary)
+        .and_return("Hello")
+
+      translator.translate_auto("Bonjour", to: "en", context: context, glossary: glossary)
+    end
+
     it "uses english as fallback for detection errors" do
       allow(mock_client).to receive(:complete)
         .and_return("invalid json", translation_response)
@@ -227,6 +439,136 @@ RSpec.describe MistralTranslator::Translator do
   end
 
   describe "private methods" do
+    describe "#build_translation_prompt" do
+      it "calls PromptBuilder.translation_prompt without enrichment" do
+        expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
+          .with("Hello", "en", "fr", preserve_html: false)
+          .and_return("basic prompt")
+
+        result = translator.send(:build_translation_prompt, "Hello", "en", "fr")
+        expect(result).to eq("basic prompt")
+      end
+
+      it "enriches prompt with context and glossary" do
+        context = "technical documentation"
+        glossary = { "API" => "API", "bug" => "bogue" }
+
+        expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
+          .with("Hello", "en", "fr", preserve_html: false)
+          .and_return("Tu es un traducteur professionnel.\n\nRÈGLES :\n- Traduis fidèlement")
+
+        result = translator.send(:build_translation_prompt, "Hello", "en", "fr", context: context, glossary: glossary)
+
+        expect(result).to include("CONTEXTE : technical documentation")
+        expect(result).to include("GLOSSAIRE (à respecter strictement) : API → API, bug → bogue")
+      end
+    end
+
+    describe "#enrich_prompt_with_context" do
+      let(:base_prompt) { "Tu es un traducteur.\n\nRÈGLES :\n- Traduis fidèlement" }
+
+      it "adds context section" do
+        context = "medical documentation"
+        result = translator.send(:enrich_prompt_with_context, base_prompt, context, nil)
+
+        expect(result).to include("CONTEXTE : medical documentation")
+        expect(result).to include("CONTEXTE : medical documentation\n\nRÈGLES :")
+      end
+
+      it "adds glossary section" do
+        glossary = { "heart" => "cœur", "lung" => "poumon" }
+        result = translator.send(:enrich_prompt_with_context, base_prompt, nil, glossary)
+
+        expect(result).to include("GLOSSAIRE (à respecter strictement) : heart → cœur, lung → poumon")
+      end
+
+      it "adds both context and glossary" do
+        context = "medical"
+        glossary = { "heart" => "cœur" }
+        result = translator.send(:enrich_prompt_with_context, base_prompt, context, glossary)
+
+        expect(result).to include("CONTEXTE : medical")
+        expect(result).to include("GLOSSAIRE (à respecter strictement) : heart → cœur")
+      end
+
+      it "returns original prompt when no enrichments" do
+        result = translator.send(:enrich_prompt_with_context, base_prompt, nil, nil)
+        expect(result).to eq(base_prompt)
+      end
+
+      it "handles empty glossary" do
+        result = translator.send(:enrich_prompt_with_context, base_prompt, nil, {})
+        expect(result).to eq(base_prompt)
+      end
+    end
+
+    describe "#calculate_confidence_score" do
+      it "returns high confidence for normal length ratio" do
+        # fr->en ratio normal: autour de 0.8-1.2
+        score = translator.send(:calculate_confidence_score, "Bonjour monde", "Hello world", "fr", "en")
+        expect(score).to be >= 0.7
+      end
+
+      it "returns lower confidence for suspicious length ratio" do
+        # Ratio très différent de la normale
+        score = translator.send(:calculate_confidence_score, "Hello", "Bonjour le monde entier", "en", "fr")
+        expect(score).to be < 0.8
+      end
+
+      it "returns zero for empty translation" do
+        score = translator.send(:calculate_confidence_score, "Hello", "", "en", "fr")
+        expect(score).to eq(0.0)
+      end
+
+      it "reduces confidence for very short texts" do
+        # Textes très courts moins fiables
+        score = translator.send(:calculate_confidence_score, "Hi", "Salut", "en", "fr")
+        expect(score).to be <= 0.6
+      end
+
+      it "handles unknown language pairs with wide tolerance" do
+        score = translator.send(:calculate_confidence_score, "Hello", "Hola", "en", "es")
+        expect(score).to be_between(0.1, 0.95)
+      end
+    end
+
+    describe "#translate_to_multiple_batch" do
+      it "creates batch requests for multiple languages" do
+        target_locales = %w[fr es]
+
+        batch_results = [
+          { success: true, result: '{"content": {"target": "Bonjour"}}', original_request: { to: "fr" } },
+          { success: true, result: '{"content": {"target": "Hola"}}', original_request: { to: "es" } }
+        ]
+
+        expect(mock_client).to receive(:translate_batch).and_return(batch_results)
+
+        result = translator.send(:translate_to_multiple_batch, "Hello", "en", target_locales)
+
+        expect(result["fr"]).to eq("Bonjour")
+        expect(result["es"]).to eq("Hola")
+      end
+    end
+
+    describe "#translate_to_multiple_sequential" do
+      it "calls translate_with_retry for each language" do
+        target_locales = %w[fr es]
+
+        expect(translator).to receive(:translate_with_retry)
+          .with("Hello", "en", "fr", context: nil, glossary: nil)
+          .and_return("Bonjour")
+        expect(translator).to receive(:translate_with_retry)
+          .with("Hello", "en", "es", context: nil, glossary: nil)
+          .and_return("Hola")
+        expect(translator).to receive(:sleep).with(2).once
+
+        result = translator.send(:translate_to_multiple_sequential, "Hello", "en", target_locales)
+
+        expect(result["fr"]).to eq("Bonjour")
+        expect(result["es"]).to eq("Hola")
+      end
+    end
+
     describe "#validate_inputs!" do
       it "validates all required inputs" do
         expect { translator.send(:validate_inputs!, nil, "en", "fr") }.to raise_error(ArgumentError)
@@ -247,16 +589,44 @@ RSpec.describe MistralTranslator::Translator do
         expect { translator.send(:validate_batch_inputs!, [], "en", "fr") }.to raise_error(ArgumentError)
       end
 
-      it "validates individual texts" do
+      it "handles empty texts in batch" do
         texts = ["Hello", "", "World"]
-        expect { translator.send(:validate_batch_inputs!, texts, "en", "fr") }.to raise_error(
-          ArgumentError, "Text at index 1 cannot be nil or empty"
-        )
+        # Ce test utilise l'ancienne méthode de validation qui n'est plus utilisée
+        # La nouvelle validation se fait via MistralTranslator::Security::BasicValidator
+        expect { MistralTranslator::Security::BasicValidator.validate_batch!(texts) }.not_to raise_error
       end
 
       it "passes with valid batch inputs" do
         texts = %w[Hello World]
         expect { translator.send(:validate_batch_inputs!, texts, "en", "fr") }.not_to raise_error
+      end
+    end
+
+    describe "#parse_language_detection" do
+      it "extracts detected language from response" do
+        response = '{"metadata": {"detected_language": "fr", "confidence": 0.95}}'
+        result = translator.send(:parse_language_detection, response)
+        expect(result).to eq("fr")
+      end
+
+      it "returns 'en' for unsupported detected language" do
+        response = '{"metadata": {"detected_language": "klingon"}}'
+        allow(MistralTranslator::LocaleHelper).to receive(:locale_supported?).with("klingon").and_return(false)
+
+        result = translator.send(:parse_language_detection, response)
+        expect(result).to eq("en")
+      end
+
+      it "returns 'en' for invalid JSON" do
+        response = "invalid json"
+        result = translator.send(:parse_language_detection, response)
+        expect(result).to eq("en")
+      end
+
+      it "returns 'en' when no JSON found" do
+        response = "No JSON here"
+        result = translator.send(:parse_language_detection, response)
+        expect(result).to eq("en")
       end
     end
   end

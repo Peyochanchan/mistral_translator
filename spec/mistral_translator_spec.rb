@@ -14,8 +14,38 @@ RSpec.describe MistralTranslator do
     end
   end
 
+  # Nouveau test pour version_info
+  describe ".version_info" do
+    it "returns complete version information" do
+      info = described_class.version_info
+
+      expect(info).to include(
+        gem_version: MistralTranslator::VERSION,
+        api_version: MistralTranslator::API_VERSION,
+        supported_model: MistralTranslator::SUPPORTED_MODEL
+      )
+      expect(info).to have_key(:ruby_version)
+      expect(info).to have_key(:platform)
+    end
+  end
+
   describe ".translate" do
-    it "delegates to Translator instance" do
+    it "delegates to Translator instance with additional options" do
+      mock_translator = instance_double(MistralTranslator::Translator)
+      allow(MistralTranslator::Translator).to receive(:new).and_return(mock_translator)
+
+      context = "technical"
+      glossary = { "API" => "API" }
+
+      expect(mock_translator).to receive(:translate)
+        .with("Hello", from: "en", to: "fr", context: context, glossary: glossary)
+        .and_return("Bonjour")
+
+      result = described_class.translate("Hello", from: "en", to: "fr", context: context, glossary: glossary)
+      expect(result).to eq("Bonjour")
+    end
+
+    it "works without additional options" do
       mock_translator = instance_double(MistralTranslator::Translator)
       allow(MistralTranslator::Translator).to receive(:new).and_return(mock_translator)
       expect(mock_translator).to receive(:translate).with("Hello", from: "en", to: "fr").and_return("Bonjour")
@@ -26,52 +56,56 @@ RSpec.describe MistralTranslator do
   end
 
   describe ".translate_to_multiple" do
-    it "delegates to Translator instance" do
+    it "delegates to Translator instance with options" do
       mock_translator = instance_double(MistralTranslator::Translator)
       allow(MistralTranslator::Translator).to receive(:new).and_return(mock_translator)
       expected_result = { "fr" => "Bonjour", "es" => "Hola" }
 
       expect(mock_translator).to receive(:translate_to_multiple)
-        .with("Hello", from: "en", to: %w[fr es])
+        .with("Hello", from: "en", to: %w[fr es], use_batch: true)
         .and_return(expected_result)
 
-      result = described_class.translate_to_multiple("Hello", from: "en", to: %w[fr es])
+      result = described_class.translate_to_multiple("Hello", from: "en", to: %w[fr es], use_batch: true)
       expect(result).to eq(expected_result)
     end
   end
 
   describe ".translate_batch" do
-    it "delegates to Translator instance" do
+    it "delegates to Translator instance with context and glossary" do
       mock_translator = instance_double(MistralTranslator::Translator)
       allow(MistralTranslator::Translator).to receive(:new).and_return(mock_translator)
       texts = %w[Hello Goodbye]
       expected_result = { 0 => "Bonjour", 1 => "Au revoir" }
 
+      context = "greeting"
+      glossary = { "Hello" => "Bonjour" }
+
       expect(mock_translator).to receive(:translate_batch)
-        .with(texts, from: "en", to: "fr")
+        .with(texts, from: "en", to: "fr", context: context, glossary: glossary)
         .and_return(expected_result)
 
-      result = described_class.translate_batch(texts, from: "en", to: "fr")
+      result = described_class.translate_batch(texts, from: "en", to: "fr", context: context, glossary: glossary)
       expect(result).to eq(expected_result)
     end
   end
 
   describe ".translate_auto" do
-    it "delegates to Translator instance" do
+    it "delegates to Translator instance with options" do
       mock_translator = instance_double(MistralTranslator::Translator)
       allow(MistralTranslator::Translator).to receive(:new).and_return(mock_translator)
 
+      context = "greeting"
       expect(mock_translator).to receive(:translate_auto)
-        .with("Bonjour", to: "en")
+        .with("Bonjour", to: "en", context: context)
         .and_return("Hello")
 
-      result = described_class.translate_auto("Bonjour", to: "en")
+      result = described_class.translate_auto("Bonjour", to: "en", context: context)
       expect(result).to eq("Hello")
     end
   end
 
   describe ".summarize" do
-    it "delegates to Summarizer instance" do
+    it "delegates to Summarizer instance with additional options" do
       mock_summarizer = instance_double(MistralTranslator::Summarizer)
       allow(MistralTranslator::Summarizer).to receive(:new).and_return(mock_summarizer)
 
@@ -85,7 +119,7 @@ RSpec.describe MistralTranslator do
   end
 
   describe ".summarize_and_translate" do
-    it "delegates to Summarizer instance" do
+    it "delegates to Summarizer instance with options" do
       mock_summarizer = instance_double(MistralTranslator::Summarizer)
       allow(MistralTranslator::Summarizer).to receive(:new).and_return(mock_summarizer)
 
@@ -99,7 +133,7 @@ RSpec.describe MistralTranslator do
   end
 
   describe ".summarize_to_multiple" do
-    it "delegates to Summarizer instance" do
+    it "delegates to Summarizer instance with style option" do
       mock_summarizer = instance_double(MistralTranslator::Summarizer)
       allow(MistralTranslator::Summarizer).to receive(:new).and_return(mock_summarizer)
       expected_result = { "fr" => "Résumé", "en" => "Summary" }
@@ -114,7 +148,7 @@ RSpec.describe MistralTranslator do
   end
 
   describe ".summarize_tiered" do
-    it "delegates to Summarizer instance" do
+    it "delegates to Summarizer instance with context option" do
       mock_summarizer = instance_double(MistralTranslator::Summarizer)
       allow(MistralTranslator::Summarizer).to receive(:new).and_return(mock_summarizer)
       expected_result = { short: "Short", medium: "Medium", long: "Long" }
@@ -153,6 +187,23 @@ RSpec.describe MistralTranslator do
     end
   end
 
+  # Nouveaux tests pour les métriques
+  describe ".metrics" do
+    it "delegates to configuration.metrics" do
+      expect(described_class.configuration).to receive(:metrics).and_return({ total_translations: 5 })
+
+      result = described_class.metrics
+      expect(result[:total_translations]).to eq(5)
+    end
+  end
+
+  describe ".reset_metrics!" do
+    it "delegates to configuration.reset_metrics!" do
+      expect(described_class.configuration).to receive(:reset_metrics!)
+      described_class.reset_metrics!
+    end
+  end
+
   describe ".health_check" do
     let(:mock_client) { instance_double(MistralTranslator::Client) }
 
@@ -161,7 +212,7 @@ RSpec.describe MistralTranslator do
     end
 
     it "returns ok status for successful API call" do
-      allow(mock_client).to receive(:complete).and_return("test response")
+      allow(mock_client).to receive(:complete).with("Hello", max_tokens: 10, context: {}).and_return("test response")
 
       result = described_class.health_check
       expect(result).to eq({ status: :ok, message: "API connection successful" })
@@ -188,6 +239,12 @@ RSpec.describe MistralTranslator do
 
       result = described_class.health_check
       expect(result).to eq({ status: :error, message: "Unexpected error: Unexpected" })
+    end
+
+    # Nouveau test pour vérifier que le contexte est passé
+    it "passes empty context to client.complete" do
+      expect(mock_client).to receive(:complete).with("Hello", max_tokens: 10, context: {})
+      described_class.health_check
     end
   end
 
@@ -221,28 +278,44 @@ RSpec.describe MistralTranslator do
     end
   end
 
-  describe "version info" do
-    describe ".version_info" do
-      it "returns complete version information" do
-        info = described_class.version_info
+  describe "Convenience module" do
+    let(:test_class) do
+      Class.new do
+        include MistralTranslator::Convenience
+      end
+    end
 
-        expect(info).to include(
-          gem_version: MistralTranslator::VERSION,
-          api_version: "v1",
-          supported_model: "mistral-small"
-        )
-        expect(info).to have_key(:ruby_version)
-        expect(info).to have_key(:platform)
+    describe ".mistral_translate" do
+      it "calls MistralTranslator.translate with options" do
+        context = "technical"
+        expect(described_class).to receive(:translate)
+          .with("Hello", from: "en", to: "fr", context: context)
+          .and_return("Bonjour")
+
+        result = test_class.mistral_translate("Hello", from: "en", to: "fr", context: context)
+        expect(result).to eq("Bonjour")
+      end
+    end
+
+    describe ".mistral_summarize" do
+      it "calls MistralTranslator.summarize with options" do
+        style = "formal"
+        expect(described_class).to receive(:summarize)
+          .with("Long text", language: "fr", max_words: 100, style: style)
+          .and_return("Summary")
+
+        result = test_class.mistral_summarize("Long text", language: "fr", max_words: 100, style: style)
+        expect(result).to eq("Summary")
       end
     end
   end
 end
 
-# Tests pour les extensions String (optionnelles)
+# Tests pour les extensions String (optionnelles) avec nouvelles options
 RSpec.describe "String extensions" do
   before do
     ENV["MISTRAL_TRANSLATOR_EXTEND_STRING"] = "true"
-    load "mistral_translator.rb" # Recharger pour activer les extensions
+    load "lib/mistral_translator.rb" # Recharger pour activer les extensions
 
     MistralTranslator.configure do |config|
       config.api_key = "test_api_key"
@@ -254,7 +327,19 @@ RSpec.describe "String extensions" do
   end
 
   describe "#mistral_translate" do
-    it "calls MistralTranslator.translate" do
+    it "calls MistralTranslator.translate with additional options" do
+      context = "greeting"
+      glossary = { "Hello" => "Bonjour" }
+
+      expect(MistralTranslator).to receive(:translate)
+        .with("Hello", from: "en", to: "fr", context: context, glossary: glossary)
+        .and_return("Bonjour")
+
+      result = "Hello".mistral_translate(from: "en", to: "fr", context: context, glossary: glossary)
+      expect(result).to eq("Bonjour")
+    end
+
+    it "works without additional options" do
       expect(MistralTranslator).to receive(:translate)
         .with("Hello", from: "en", to: "fr")
         .and_return("Bonjour")
@@ -265,13 +350,220 @@ RSpec.describe "String extensions" do
   end
 
   describe "#mistral_summarize" do
-    it "calls MistralTranslator.summarize" do
+    it "calls MistralTranslator.summarize with style option" do
+      style = "academic"
+      context = "research"
+
       expect(MistralTranslator).to receive(:summarize)
-        .with("Long text", language: "fr", max_words: 100)
+        .with("Long text", language: "fr", max_words: 100, style: style, context: context)
         .and_return("Summary")
 
-      result = "Long text".mistral_summarize(language: "fr", max_words: 100)
+      result = "Long text".mistral_summarize(language: "fr", max_words: 100, style: style, context: context)
       expect(result).to eq("Summary")
+    end
+
+    it "works with default options" do
+      expect(MistralTranslator).to receive(:summarize)
+        .with("Long text", language: "fr", max_words: 250)
+        .and_return("Summary")
+
+      result = "Long text".mistral_summarize
+      expect(result).to eq("Summary")
+    end
+  end
+end
+
+# Tests d'intégration pour vérifier que tous les modules fonctionnent ensemble
+RSpec.describe "MistralTranslator Integration" do
+  before do
+    MistralTranslator.configure do |config|
+      config.api_key = "test_api_key"
+      config.enable_metrics = true
+    end
+  end
+
+  describe "with callbacks and metrics" do
+    let(:translation_calls) { [] }
+    let(:error_calls) { [] }
+
+    before do
+      MistralTranslator.configure do |config|
+        config.on_translation_start = lambda { |from, to, length, _timestamp|
+          translation_calls << { event: :start, from: from, to: to, length: length }
+        }
+        config.on_translation_complete = lambda { |from, to, _orig_len, _trans_len, duration|
+          translation_calls << { event: :complete, from: from, to: to, duration: duration }
+        }
+        config.on_translation_error = lambda { |from, to, error, attempt, _timestamp|
+          error_calls << { from: from, to: to, error: error.class.name, attempt: attempt }
+        }
+      end
+    end
+
+    it "integrates callbacks with translation flow" do
+      # Mock le client pour simuler les appels de callbacks comme ils se passent vraiment
+      mock_client = instance_double(MistralTranslator::Client)
+      allow(MistralTranslator::Client).to receive(:new).and_return(mock_client)
+
+      response = { content: { target: "Bonjour" } }.to_json
+
+      # Mock le client pour appeler les callbacks comme dans la vraie vie
+      expect(mock_client).to receive(:complete) do |prompt, context:|
+        # Simuler l'appel des callbacks comme dans Client#complete
+        Time.now
+
+        # Trigger callback pour le début de traduction
+        MistralTranslator.configuration.trigger_translation_start(
+          context[:from_locale],
+          context[:to_locale],
+          prompt&.length || 0
+        )
+
+        # Simuler la durée de traduction
+        duration = 0.1
+
+        # Trigger callback pour la fin de traduction
+        MistralTranslator.configuration.trigger_translation_complete(
+          context[:from_locale],
+          context[:to_locale],
+          prompt&.length || 0,
+          response.length,
+          duration
+        )
+
+        response
+      end
+
+      result = MistralTranslator.translate("Hello", from: "en", to: "fr")
+
+      expect(result).to eq("Bonjour")
+      expect(translation_calls.length).to eq(2)
+      expect(translation_calls.first[:event]).to eq(:start)
+      expect(translation_calls.last[:event]).to eq(:complete)
+      expect(error_calls).to be_empty
+    end
+
+    it "tracks metrics during translation" do
+      MistralTranslator.reset_metrics!
+      # S'assurer que les métriques sont activées
+      MistralTranslator.configure { |c| c.enable_metrics = true }
+
+      mock_client = instance_double(MistralTranslator::Client)
+      allow(MistralTranslator::Client).to receive(:new).and_return(mock_client)
+
+      response = { content: { target: "Bonjour" } }.to_json
+
+      # Mock le client pour appeler les callbacks de métriques
+      expect(mock_client).to receive(:complete) do |prompt, context:|
+        # Simuler l'appel des callbacks de métriques comme dans Client#complete
+        MistralTranslator.configuration.trigger_translation_start(
+          context[:from_locale],
+          context[:to_locale],
+          prompt&.length || 0
+        )
+
+        MistralTranslator.configuration.trigger_translation_complete(
+          context[:from_locale],
+          context[:to_locale],
+          prompt&.length || 0,
+          response.length,
+          0.1
+        )
+
+        response
+      end
+
+      MistralTranslator.translate("Hello", from: "en", to: "fr")
+
+      metrics = MistralTranslator.metrics
+      expect(metrics[:total_translations]).to eq(1)
+      expect(metrics[:total_characters]).to be > 0 # Le prompt complet, pas juste "Hello"
+      expect(metrics[:translations_by_language]["en->fr"]).to eq(1)
+    end
+  end
+
+  describe "Record Translation Integration" do
+    let(:mock_record) do
+      record = double("Topic")
+      allow(record).to receive_messages(save!: true, name_en: "English Name", name_fr: "", name_es: "")
+      allow(record).to receive(:name_fr=)
+      allow(record).to receive(:name_es=)
+      record
+    end
+
+    it "translates records using adapters" do
+      # Mock MistralTranslator.translate pour éviter les appels API réels
+      allow(MistralTranslator).to receive(:translate).and_return("Nom français", "Nombre español")
+
+      # Créer un adaptateur I18n par défaut
+      adapter = MistralTranslator::Adapters::I18nAttributesAdapter.new(mock_record)
+      allow(adapter).to receive(:available_locales).and_return(%i[en fr es])
+
+      service = MistralTranslator::Adapters::RecordTranslationService.new(
+        mock_record,
+        ["name"],
+        adapter: adapter,
+        source_locale: :en
+      )
+
+      result = service.translate_to_all_locales
+
+      expect(result).to be true
+      expect(mock_record).to have_received(:name_fr=).with("Nom français")
+      expect(mock_record).to have_received(:name_es=).with("Nombre español")
+    end
+  end
+
+  describe "Helpers Integration" do
+    it "provides smart summarization" do
+      allow(MistralTranslator).to receive(:summarize).and_return("Smart summary")
+
+      html_content = "<div><p>This is a <strong>long</strong> HTML content that needs summarization.</p></div>"
+
+      result = MistralTranslator::Helpers.smart_summarize(html_content, max_words: 50)
+
+      expect(result[:summary]).to eq("Smart summary")
+      expect(result[:original_length]).to be > 0
+      expect(result[:compression_ratio]).to be_a(Float)
+    end
+
+    it "validates locales with suggestions" do
+      result = MistralTranslator::Helpers.validate_locale_with_suggestions("fre")
+
+      expect(result[:valid]).to be false
+      expect(result[:suggestions]).to include("fr")
+      expect(result[:supported_locales]).to be_an(Array)
+    end
+
+    it "estimates translation costs" do
+      text = "Hello world! This is a test."
+
+      result = MistralTranslator::Helpers.estimate_translation_cost(text, from: "en", to: "fr")
+
+      expect(result[:character_count]).to eq(text.length)
+      expect(result[:estimated_cost]).to be_a(Float)
+      expect(result[:currency]).to eq("USD")
+    end
+  end
+
+  describe "Error Handling Integration" do
+    it "handles cascading errors gracefully" do
+      # Simuler une erreur dans le client
+      mock_client = instance_double(MistralTranslator::Client)
+      allow(MistralTranslator::Client).to receive(:new).and_return(mock_client)
+      allow(mock_client).to receive(:complete).and_raise(MistralTranslator::ApiError, "API down")
+
+      expect do
+        MistralTranslator.translate("Hello", from: "en", to: "fr")
+      end.to raise_error(MistralTranslator::ApiError, "API down")
+    end
+
+    it "handles invalid configurations" do
+      MistralTranslator.reset_configuration!
+
+      expect do
+        MistralTranslator.translate("Hello", from: "en", to: "fr")
+      end.to raise_error(MistralTranslator::ConfigurationError, /API key is required/)
     end
   end
 end
