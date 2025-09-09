@@ -335,4 +335,7 @@ end
 
 ---
 
-**Prochaines étapes :** [Adaptateurs](adapters.md) | [Jobs Asynchrones](jobs.md)
+**Rails Integration Navigation:**
+[← Setup](setup.md) | [Adapters](adapters.md) | [Jobs](jobs.md) | [Controllers](controllers.md) →
+
+[↑ Back to Documentation Home](../README.md)

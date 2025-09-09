@@ -154,4 +154,7 @@ end
 
 ---
 
-**Prochaines étapes :** [Summarization](summarization.md) | [Error Handling](error-handling.md)
+**Advanced Usage Navigation:**
+[← Translations](translations.md) | [Batch Processing](batch-processing.md) | [Error Handling](error-handling.md) | [Monitoring](monitoring.md) | [Summarization](summarization.md) →
+
+[↑ Back to Documentation Home](../README.md)

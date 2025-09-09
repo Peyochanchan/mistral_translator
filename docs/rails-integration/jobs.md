@@ -93,4 +93,7 @@ end
 
 ---
 
-**Prochaines étapes :** [Controllers](controllers.md) | [API Reference](../api-reference/configuration.md)
+**Rails Integration Navigation:**
+[← Setup](setup.md) | [Adapters](adapters.md) | [Jobs](jobs.md) | [Controllers](controllers.md) →
+
+[↑ Back to Documentation Home](../README.md)

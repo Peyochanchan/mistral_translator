@@ -175,4 +175,7 @@ end
 
 ---
 
-**Prochaines étapes :** [Traductions Avancées](advanced-usage/translations.md) | [Rails Integration](rails-integration/setup.md)
+**Documentation Navigation:**
+[← Installation](installation.md) | [Getting Started](getting-started.md) | [Migration Guide](migration-0.1.0-to-0.2.0.md) →
+
+**Sections:** [API Reference](api-reference/) | [Advanced Usage](advanced-usage/) | [Rails Integration](rails-integration/)

@@ -666,3 +666,9 @@ end
 ```
 
 Cette approche robuste de gestion des erreurs garantit que votre application reste stable même en cas de problèmes avec l'API de traduction.
+
+---
+
+[← Methods](methods.md) | [Errors](errors.md) | [Callbacks](callbacks.md) | [Configuration](configuration.md) →
+
+[↑ Back to Documentation Home](../README.md)

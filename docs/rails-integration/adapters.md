@@ -80,4 +80,7 @@ ActionText est automatiquement détecté et le HTML est préservé lors de la tr
 
 ---
 
-**Prochaines étapes :** [Jobs Asynchrones](jobs.md) | [Controllers](controllers.md)
+**Rails Integration Navigation:**
+[← Setup](setup.md) | [Adapters](adapters.md) | [Jobs](jobs.md) | [Controllers](controllers.md) →
+
+[↑ Back to Documentation Home](../README.md)

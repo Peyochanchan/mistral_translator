@@ -138,4 +138,7 @@ config.retry_delays = [3, 6, 12, 24]  # Délais plus longs
 
 ---
 
-💡 **Sécurité :** Utilisez toujours des variables d'environnement pour la clé API.
+**Documentation Navigation:**
+[← Installation](installation.md) | [Getting Started](getting-started.md) | [Migration Guide](migration-0.1.0-to-0.2.0.md) →
+
+**Sections:** [API Reference](api-reference/) | [Advanced Usage](advanced-usage/) | [Rails Integration](rails-integration/)
