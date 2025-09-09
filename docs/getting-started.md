@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Guide de Démarrage
 
 Premiers pas avec MistralTranslator : exemples concrets pour débuter rapidement.

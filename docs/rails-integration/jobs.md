@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Jobs Asynchrones
 
 Traitement des traductions en arrière-plan avec ActiveJob/Sidekiq.

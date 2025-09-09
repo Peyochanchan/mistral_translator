@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Référence des Méthodes API
 
 ## Table des Matières

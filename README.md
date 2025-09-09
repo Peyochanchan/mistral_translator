@@ -1,162 +1,273 @@
 # MistralTranslator
 
-> 🚀 Une gem Ruby puissante pour la traduction et la synthèse de texte utilisant l'API Mistral AI, avec support avancé pour Rails.
+Ruby gem for AI-powered translation and text summarization using Mistral AI API, with advanced Rails support.
 
 [![Gem Version](https://badge.fury.io/rb/mistral_translator.svg)](https://badge.fury.io/rb/mistral_translator)
-[![Ruby](https://github.com/username/mistral_translator/actions/workflows/ruby.yml/badge.svg)](https://github.com/username/mistral_translator/actions/workflows/ruby.yml)
+[![Ruby](https://github.com/peyochanchan/mistral_translator/actions/workflows/ruby.yml/badge.svg)](https://github.com/peyochanchan/mistral_translator/actions/workflows/ruby.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## ⚡ Installation Rapide
+## Quick Start
 
 ```ruby
-# Gemfile
+# Installation
 gem 'mistral_translator'
 
 # Configuration
 MistralTranslator.configure do |config|
   config.api_key = ENV['MISTRAL_API_KEY']
 end
-```
 
-## 🎯 Usage de Base
-
-```ruby
-# Traduction simple
-result = MistralTranslator.translate("Bonjour le monde", from: "fr", to: "en")
+# Basic usage
+MistralTranslator.translate("Bonjour le monde", from: "fr", to: "en")
 # => "Hello world"
-
-# Traduction avec contexte
-result = MistralTranslator.translate(
-  "Le produit est disponible",
-  from: "fr", to: "en",
-  context: "E-commerce website",
-  glossary: { "produit" => "item" }
-)
-# => "The item is available"
-
-# Résumé intelligent
-summary = MistralTranslator.summarize(
-  "Long article content...",
-  language: "fr",
-  max_words: 100
-)
-
-# Intégration Rails
-class Article < ApplicationRecord
-  translates :title, :content  # Mobility/Globalize
-
-  def translate_to_all_languages!
-    MistralTranslator::RecordTranslation.translate_mobility_record(
-      self, [:title, :content], source_locale: I18n.locale
-    )
-  end
-end
 ```
 
-## 🌟 Fonctionnalités Principales
+## Key Features
 
-- ✅ **Traduction intelligente** avec contexte et glossaires personnalisés
-- ✅ **Intégration Rails native** (Mobility, Globalize, I18n)
-- ✅ **Traitement par lot optimisé** pour de gros volumes
-- ✅ **Résumés multi-niveaux** et multi-langues
-- ✅ **Gestion d'erreurs robuste** avec retry automatique et fallback
-- ✅ **Monitoring complet** avec métriques et dashboard
-- ✅ **Jobs asynchrones** pour traitement en arrière-plan
-- ✅ **Rate limiting** et sécurité intégrés
+- **Smart translation** with context and custom glossaries
+- **Native Rails integration** (Mobility, Globalize, I18n attributes)
+- **Batch processing** for high-volume translations
+- **Multi-level summarization** with translation
+- **Robust error handling** with automatic retry and fallback
+- **Complete monitoring** with metrics and callbacks
+- **Asynchronous jobs** for background processing
+- **Built-in rate limiting** and security
 
-## 📚 Documentation Complète
-
-| Section                                          | Description                          |
-| ------------------------------------------------ | ------------------------------------ |
-| 📖 [**Documentation Complète**](docs/)           | Guide complet avec tous les exemples |
-| 🚀 [Installation & Config](docs/installation.md) | Setup détaillé et configuration      |
-| 👶 [Guide de Démarrage](docs/getting-started.md) | Premiers pas avec exemples           |
-| ⚡ [Usage Avancé](docs/advanced-usage/)          | Fonctionnalités avancées             |
-| 🛤️ [Intégration Rails](docs/rails-integration/)  | Setup Rails complet                  |
-| 📊 [API Référence](docs/api-reference/)          | Documentation technique              |
-| 💻 [Exemples Pratiques](examples/)               | Code prêt à utiliser                 |
-
-## 🏃‍♂️ Démarrage selon votre Profil
-
-**🆕 Nouveau avec la gem ?**  
-→ [Installation](docs/installation.md) → [Guide de Démarrage](docs/getting-started.md)
-
-**🛤️ Projet Rails existant ?**  
-→ [Config Rails](docs/rails-integration/setup.md) → [Adaptateurs](docs/rails-integration/adapters.md)
-
-**🚀 Déploiement Production ?**  
-→ [Gestion Erreurs](docs/advanced-usage/error-handling.md) → [Monitoring](docs/advanced-usage/monitoring.md)
-
-## 🌍 Langues Supportées
+## Supported Languages
 
 `fr` `en` `es` `pt` `de` `it` `nl` `ru` `mg` `ja` `ko` `zh` `ar`
 
-## 🔧 Configuration Rapide Rails
+## Installation
+
+Add to your Gemfile:
 
 ```ruby
-# config/initializers/mistral_translator.rb
+gem 'mistral_translator'
+```
+
+Then run:
+
+```bash
+bundle install
+```
+
+### API Key Setup
+
+Get your API key from [Mistral AI Console](https://console.mistral.ai/) and configure it:
+
+```ruby
+# Environment variable (recommended)
+export MISTRAL_API_KEY="your_api_key_here"
+
+# Or in Rails config/initializers/mistral_translator.rb
 MistralTranslator.configure do |config|
   config.api_key = ENV['MISTRAL_API_KEY']
   config.enable_metrics = Rails.env.production?
-  config.setup_rails_logging if Rails.env.development?
+end
+```
 
-  # Callbacks pour monitoring
+## Basic Usage Examples
+
+### Simple Translation
+
+```ruby
+# Basic translation
+result = MistralTranslator.translate("Bonjour", from: "fr", to: "en")
+# => "Hello"
+
+# With context for better accuracy
+result = MistralTranslator.translate(
+  "Le produit est disponible",
+  from: "fr",
+  to: "en",
+  context: "E-commerce website"
+)
+# => "The product is available"
+
+# With custom glossary
+result = MistralTranslator.translate(
+  "Notre API est performante",
+  from: "fr",
+  to: "en",
+  glossary: { "API" => "API" }  # Preserve technical terms
+)
+# => "Our API is high-performing"
+```
+
+### Auto-Detection
+
+```ruby
+# Automatic source language detection
+MistralTranslator.translate_auto("¡Hola mundo!", to: "fr")
+# => "Salut le monde !"
+```
+
+### Batch Processing
+
+```ruby
+texts = ["Bonjour", "Merci", "Au revoir"]
+results = MistralTranslator.translate_batch(texts, from: "fr", to: "en")
+# => {0 => "Hello", 1 => "Thank you", 2 => "Goodbye"}
+```
+
+### Text Summarization
+
+```ruby
+long_text = "Ruby on Rails is a web framework..."
+
+# Simple summary
+summary = MistralTranslator.summarize(long_text, language: "en", max_words: 50)
+
+# Summary with translation
+summary = MistralTranslator.summarize_and_translate(
+  long_text,
+  from: "en",
+  to: "fr",
+  max_words: 100
+)
+```
+
+### Rails Integration
+
+```ruby
+# With Mobility
+class Article < ApplicationRecord
+  extend Mobility
+  translates :title, :content, backend: :table
+
+  def translate_to_all_languages!
+    MistralTranslator::RecordTranslation.translate_mobility_record(
+      self,
+      [:title, :content],
+      source_locale: I18n.locale
+    )
+  end
+end
+
+# Usage
+article = Article.create!(title_fr: "Titre français", content_fr: "Contenu...")
+article.translate_to_all_languages!
+```
+
+## Configuration Options
+
+```ruby
+MistralTranslator.configure do |config|
+  # Required
+  config.api_key = ENV['MISTRAL_API_KEY']
+
+  # Optional
+  config.model = "mistral-small"                    # AI model to use
+  config.retry_delays = [1, 2, 4, 8, 16]          # Retry delays in seconds
+  config.enable_metrics = true                     # Enable performance metrics
+
+  # Callbacks for monitoring
   config.on_translation_complete = ->(from, to, orig_len, trans_len, duration) {
-    Rails.logger.info "✅ #{from}→#{to} completed in #{duration.round(2)}s"
+    Rails.logger.info "Translation #{from}→#{to} completed in #{duration.round(2)}s"
+  }
+
+  config.on_translation_error = ->(from, to, error, attempt, timestamp) {
+    Rails.logger.error "Translation failed: #{error.message} (attempt #{attempt})"
   }
 end
 ```
 
-## 📊 Exemple Avancé
+## Error Handling
 
 ```ruby
-# Traduction batch avec progression et monitoring
-texts = ["Texte 1", "Texte 2", "Texte 3"]
-
-results = MistralTranslator::Helpers.translate_with_progress(
-  texts.each_with_index.to_h,
-  from: "fr", to: "en"
-) do |current, total, key, result|
-  puts "Progress: #{(current.to_f/total*100).round(1)}% - #{key}"
+begin
+  result = MistralTranslator.translate("Hello", from: "en", to: "fr")
+rescue MistralTranslator::RateLimitError
+  # Rate limit hit - automatic retry with backoff
+  retry
+rescue MistralTranslator::AuthenticationError
+  # Invalid API key
+  Rails.logger.error "Check your Mistral API key"
+rescue MistralTranslator::UnsupportedLanguageError => e
+  # Language not supported
+  Rails.logger.error "Language '#{e.language}' not supported"
+rescue MistralTranslator::Error => e
+  # General error handling
+  Rails.logger.error "Translation failed: #{e.message}"
 end
-
-# Résumés multi-niveaux
-summaries = MistralTranslator.summarize_tiered(
-  long_content,
-  language: "fr",
-  short: 50,    # Version tweet
-  medium: 150,  # Version paragraphe
-  long: 400     # Version article
-)
 ```
 
-## 🤝 Contribution
+## Performance Monitoring
 
-Les contributions sont les bienvenues ! Voir [CONTRIBUTING.md](CONTRIBUTING.md).
+```ruby
+# Enable metrics
+MistralTranslator.configure { |c| c.enable_metrics = true }
 
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit (`git commit -m 'Add AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
+# View metrics
+metrics = MistralTranslator.metrics
+puts "Total translations: #{metrics[:total_translations]}"
+puts "Average time: #{metrics[:average_translation_time]}s"
+puts "Error rate: #{metrics[:error_rate]}%"
+```
 
-## 📝 Changelog
+## 📖 Complete Documentation
 
-Voir [CHANGELOG.md](CHANGELOG.md) pour l'historique des versions.
+**For comprehensive guides, advanced usage, and Rails integration examples:**
 
-## 📞 Support & Community
+### 🌐 [**Full Documentation Website**](https://peyochanchan.github.io/mistral_translator/)
 
-- 📖 [Documentation](docs/)
+The complete documentation includes:
+
+- **Getting Started Guide** - Step-by-step tutorials
+- **Advanced Usage** - Context, glossaries, batch processing, monitoring
+- **Rails Integration** - Mobility, Globalize, jobs, controllers
+- **API Reference** - Complete method documentation
+- **Examples** - Ready-to-use code samples
+- **Error Handling** - Comprehensive error management strategies
+
+### Quick Links
+
+- [Installation & Setup](https://peyochanchan.github.io/mistral_translator/installation)
+- [Rails Integration Guide](https://peyochanchan.github.io/mistral_translator/rails-integration/)
+- [API Methods Reference](https://peyochanchan.github.io/mistral_translator/api-reference/methods)
+- [Error Handling Guide](https://peyochanchan.github.io/mistral_translator/api-reference/errors)
+- [Monitoring Setup](https://peyochanchan.github.io/mistral_translator/advanced-usage/monitoring)
+
+## Requirements
+
+- Ruby 3.2+
+- Mistral AI API key
+- Rails 6.0+ (optional, for Rails integration features)
+
+## Testing
+
+```bash
+# Run tests
+bundle exec rspec
+
+# Run with coverage
+COVERAGE=true bundle exec rspec
+
+# Integration tests (requires API key)
+MISTRAL_API_KEY=your_key bundle exec rspec --tag integration
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
+
+## Support
+
+- 📖 [Documentation](https://peyochanchan.github.io/mistral_translator/)
 - 🐛 [Issues](../../issues)
 - 💬 [Discussions](../../discussions)
-- 📧 Email: support@votre-domain.com
-
-## ⚖️ License
-
-Distribué sous la licence MIT. Voir [LICENSE](LICENSE) pour plus d'informations.
+- 📧 Support: Create an issue for help
 
 ---
 
-<div align="center">
-  <sub>Built with ❤️ by <a href="https://github.com/peyochanchan">@Peyochanchan</a></sub>
-</div>
+Built with Ruby ❤️ by [@peyochanchan](https://github.com/peyochanchan)

@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Monitoring et Métriques
 
 Surveillez et optimisez vos traductions avec des métriques pertinentes et des alertes intelligentes.

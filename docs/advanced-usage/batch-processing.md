@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Traitement par Lot (Batch)
 
 Optimisez vos traductions avec le traitement par lot et les traductions multiples.

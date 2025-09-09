@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Gestion des Erreurs
 
 Patterns et stratégies pour gérer les erreurs de traduction de façon robuste.

@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Référence des Erreurs API
 
 ## Table des Matières

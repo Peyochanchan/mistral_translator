@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Configuration API
 
 Référence complète des options de configuration.

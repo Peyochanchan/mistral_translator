@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Controllers et API
 
 Endpoints pour traduction et interface d'administration.

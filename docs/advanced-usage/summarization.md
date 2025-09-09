@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Résumés Intelligents
 
 Résumés automatiques, multi-niveaux et multilingues.

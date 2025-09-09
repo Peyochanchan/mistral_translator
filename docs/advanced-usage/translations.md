@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Traductions Avancées
 
 Fonctionnalités avancées : contexte, glossaires, HTML, auto-détection, score de confiance.

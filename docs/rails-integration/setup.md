@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Configuration Rails
 
 Intégration complète de MistralTranslator avec Ruby on Rails.

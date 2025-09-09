@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Documentation MistralTranslator
 
 Bienvenue dans la documentation complète de **MistralTranslator**, une gem Ruby puissante pour la traduction et la synthèse de texte utilisant l'API Mistral AI.

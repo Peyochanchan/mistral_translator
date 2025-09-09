@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Installation et Configuration
 
 Installation et configuration de base de MistralTranslator.

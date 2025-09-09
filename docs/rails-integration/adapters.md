@@ -1,3 +1,5 @@
+{% include_relative _includes/nav.md %}
+
 # Adaptateurs Rails
 
 Intégration automatique avec les gems d'i18n Rails.
