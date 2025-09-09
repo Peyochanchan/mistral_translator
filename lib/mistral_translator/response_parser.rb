@@ -97,7 +97,17 @@ module MistralTranslator
 
         begin
           json_content = extract_json_from_content(raw_content)
-          return nil unless json_content
+          unless json_content
+            # Aucun JSON détecté: utiliser le texte brut comme repli si non vide
+            text = raw_content.to_s.strip
+            raise EmptyTranslationError, "Empty summary received" if text.empty?
+
+            return {
+              original: nil,
+              summary: text,
+              metadata: { "operation" => "summarization", "fallback" => true }
+            }
+          end
 
           summary_data = JSON.parse(json_content)
           summary_text = extract_target_content(summary_data)
