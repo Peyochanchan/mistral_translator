@@ -50,4 +50,20 @@ module MistralTranslator
       super("Unsupported language: #{language}")
     end
   end
+
+  class SecurityError < Error
+    def initialize(message = "Security violation detected")
+      super
+    end
+  end
+
+  class RateLimitExceededError < Error
+    attr_reader :wait_time, :retry_after
+
+    def initialize(message = "Rate limit exceeded", wait_time: nil, retry_after: nil)
+      super(message)
+      @wait_time = wait_time
+      @retry_after = retry_after
+    end
+  end
 end

@@ -5,6 +5,7 @@ require "json"
 require "uri"
 require_relative "logger"
 require_relative "client_helpers"
+require_relative "security"
 
 module MistralTranslator
   class Client
@@ -13,14 +14,18 @@ module MistralTranslator
     include ClientHelpers::BatchHandler
     include ClientHelpers::LoggingHelper
 
-    def initialize(api_key: nil)
+    def initialize(api_key: nil, rate_limiter: nil)
       @api_key = api_key || MistralTranslator.configuration.api_key!
       @base_uri = MistralTranslator.configuration.api_url
       @model = MistralTranslator.configuration.model
       @retry_delays = MistralTranslator.configuration.retry_delays
+      @rate_limiter = rate_limiter || Security::BasicRateLimiter.new
     end
 
     def complete(prompt, max_tokens: nil, temperature: nil, context: {})
+      # Vérifier le rate limit avant de faire la requête
+      @rate_limiter.wait_and_record!
+
       ctx = (context || {}).merge(operation: :complete)
       start_time = Time.now
       trigger_translation_start_callback(ctx, prompt)
@@ -37,6 +42,9 @@ module MistralTranslator
     end
 
     def chat(prompt, max_tokens: nil, temperature: nil, context: {})
+      # Vérifier le rate limit avant de faire la requête
+      @rate_limiter.wait_and_record!
+
       ctx = (context || {}).merge(operation: :chat)
       start_time = Time.now
       trigger_translation_start_callback(ctx, prompt)

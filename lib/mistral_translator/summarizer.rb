@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "logger"
+require_relative "security"
 
 module MistralTranslator
   class Summarizer
@@ -16,12 +17,18 @@ module MistralTranslator
     # Résumé simple dans une langue donnée
     def summarize(text, language: "fr", max_words: DEFAULT_MAX_WORDS)
       log_debug("Starting summarize - language: #{language}, max_words: #{max_words}")
-      validate_summarize_inputs!(text, language, max_words)
+
+      # Validation basique des entrées
+      validated_text = Security::BasicValidator.validate_text!(text)
+      raise ArgumentError, "Max words must be positive" unless max_words.is_a?(Integer) && max_words.positive?
+
+      # Si le texte est vide, retourner directement une chaîne vide
+      return "" if validated_text.empty?
 
       target_locale = LocaleHelper.validate_locale!(language)
       log_debug("Target locale validated: #{target_locale}")
 
-      cleaned_text = clean_document_content(text)
+      cleaned_text = clean_document_content(validated_text)
       log_debug("Text cleaned, length: #{cleaned_text&.length}")
 
       result = summarize_with_retry(cleaned_text, target_locale, max_words)

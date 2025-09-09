@@ -81,26 +81,24 @@ RSpec.describe MistralTranslator::Summarizer do
       summarizer.summarize(messy_text, language: "fr")
     end
 
-    context "with validation errors" do
-      it "raises ArgumentError for nil text" do
-        expect { summarizer.summarize(nil) }.to raise_error(
-          ArgumentError, "Text cannot be nil or empty"
-        )
+    context "with validation behavior" do
+      it "accepts nil text and returns empty string" do
+        result = summarizer.summarize(nil)
+        expect(result).to eq("")
       end
 
-      it "raises ArgumentError for empty text" do
-        expect { summarizer.summarize("") }.to raise_error(
-          ArgumentError, "Text cannot be nil or empty"
-        )
+      it "accepts empty text and returns empty string" do
+        result = summarizer.summarize("")
+        expect(result).to eq("")
       end
 
       it "raises ArgumentError for invalid max_words" do
         expect { summarizer.summarize(long_text, max_words: 0) }.to raise_error(
-          ArgumentError, "Max words must be a positive integer"
+          ArgumentError, "Max words must be positive"
         )
 
         expect { summarizer.summarize(long_text, max_words: "invalid") }.to raise_error(
-          ArgumentError, "Max words must be a positive integer"
+          ArgumentError, "Max words must be positive"
         )
       end
     end

@@ -47,9 +47,8 @@ RSpec.describe "Mistral API Integration", :vcr do
     end
 
     it "handles empty text gracefully" do
-      expect do
-        MistralTranslator.translate("", from: "fr", to: "en")
-      end.to raise_error(ArgumentError, /cannot be nil or empty/)
+      result = MistralTranslator.translate("", from: "fr", to: "en")
+      expect(result).to eq("")
     end
 
     it "validates language codes" do
@@ -350,10 +349,9 @@ RSpec.describe "Mistral API Integration", :vcr do
       end.not_to raise_error
     end
 
-    it "validates input parameters properly" do
-      expect do
-        MistralTranslator.translate("Hello", from: "en", to: "en")
-      end.to raise_error(ArgumentError, /cannot be the same/)
+    it "handles same source and target language" do
+      result = MistralTranslator.translate("Hello", from: "en", to: "en")
+      expect(result).to eq("Hello")
     end
 
     it "handles unsupported languages" do

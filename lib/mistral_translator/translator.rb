@@ -2,6 +2,7 @@
 
 require_relative "logger"
 require_relative "translator_helpers"
+require_relative "security"
 
 module MistralTranslator
   class Translator
@@ -22,13 +23,22 @@ module MistralTranslator
 
     # Traduction simple d'un texte vers une langue
     def translate(text, from:, to:, **options)
-      validate_inputs!(text, from, to)
+      # Validation basique des entrées
+      validated_text = Security::BasicValidator.validate_text!(text)
+
+      # Si le texte est vide, retourner directement une chaîne vide
+      return "" if validated_text.empty?
 
       source_locale = LocaleHelper.validate_locale!(from)
       target_locale = LocaleHelper.validate_locale!(to)
 
-      translate_with_retry(text, source_locale, target_locale, context: options[:context], glossary: options[:glossary],
-                                                               preserve_html: options.fetch(:preserve_html, false))
+      # Si même langue source et cible, retourner le texte original
+      return validated_text if source_locale == target_locale
+
+      translate_with_retry(validated_text, source_locale, target_locale,
+                           context: options[:context],
+                           glossary: options[:glossary],
+                           preserve_html: options.fetch(:preserve_html, false))
     end
 
     # Traduction avec score de confiance (expérimental)
@@ -72,26 +82,13 @@ module MistralTranslator
 
     # Traduction en lot (plusieurs textes vers une langue)
     def translate_batch(texts, from:, to:, context: nil, glossary: nil)
-      validate_batch_inputs!(texts, from, to)
-
+      validated_texts = Security::BasicValidator.validate_batch!(texts)
       source_locale = LocaleHelper.validate_locale!(from)
       target_locale = LocaleHelper.validate_locale!(to)
 
-      # Optimisation : utiliser le nouveau système de batch du client
-      requests = texts.map.with_index do |text, index|
-        {
-          prompt: build_translation_prompt(text, source_locale, target_locale, context: context, glossary: glossary),
-          from: source_locale,
-          to: target_locale,
-          index: index,
-          original_text: text
-        }
-      end
+      return handle_same_language_batch(validated_texts) if source_locale == target_locale
 
-      batch_results = @client.translate_batch(requests, batch_size: 10)
-
-      # Traiter les résultats
-      process_batch_results(batch_results, texts)
+      process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
     end
 
     # Auto-détection de la langue source avec support du contexte
@@ -117,20 +114,63 @@ module MistralTranslator
 
     # Ces méthodes sont héritées via MultiTargetHelper
 
-    def process_batch_results(batch_results, _original_texts)
-      results = {}
+    def handle_same_language_batch(validated_texts)
+      validated_texts.each_with_index.to_h { |text, index| [index, text] }
+    end
 
-      batch_results.each do |result|
-        index = result[:original_request][:index]
-        if result[:success]
-          parsed_result = ResponseParser.parse_translation_response(result[:result])
-          results[index] = parsed_result[:translated] if parsed_result
+    def process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
+      results = {}
+      batch_config = { source_locale: source_locale, target_locale: target_locale, context: context,
+                       glossary: glossary }
+      requests = build_batch_requests(validated_texts, batch_config, results)
+
+      process_batch_requests(requests, results) if requests.any?
+
+      results
+    end
+
+    def build_batch_requests(validated_texts, batch_config, results)
+      requests = []
+
+      validated_texts.each_with_index do |text, index|
+        if text.nil? || text.empty?
+          results[index] = ""
         else
-          results[index] = nil # ou une valeur d'erreur
+          requests << create_batch_request(text, batch_config, index)
         end
       end
 
-      results
+      requests
+    end
+
+    def create_batch_request(text, batch_config, index)
+      {
+        prompt: build_translation_prompt(text, batch_config[:source_locale], batch_config[:target_locale],
+                                         context: batch_config[:context], glossary: batch_config[:glossary]),
+        from: batch_config[:source_locale],
+        to: batch_config[:target_locale],
+        index: index,
+        original_text: text
+      }
+    end
+
+    def process_batch_requests(requests, results)
+      batch_results = @client.translate_batch(requests, batch_size: 10)
+      batch_results.each do |result|
+        process_batch_result(result, results)
+      end
+    end
+
+    def process_batch_result(result, results)
+      index = result[:original_request][:index]
+      results[index] = (parse_batch_response(result[:result]) if result[:success])
+    end
+
+    def parse_batch_response(response)
+      parsed_result = ResponseParser.parse_translation_response(response)
+      parsed_result[:translated] if parsed_result
+    rescue EmptyTranslationError
+      ""
     end
 
     def translate_with_retry(text, source_locale, target_locale, attempt = 0, **options)
