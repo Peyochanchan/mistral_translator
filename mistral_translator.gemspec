@@ -9,7 +9,10 @@ Gem::Specification.new do |spec|
   spec.email = ["cameleon24@outlook.fr"]
 
   spec.summary = "Gem to translate and summarize text with Mistral API"
-  spec.description = "Allows translating text into different languages and generating summaries using the MistralAI API"
+  spec.description = "A comprehensive Ruby gem for text translation, summarization, and multilingual content " \
+                     "management using Mistral AI API. Features include context-aware translation, " \
+                     "glossaries, batch processing, Rails integration with Mobility/Globalize support, " \
+                     "monitoring, and advanced helpers for complex translation workflows."
 
   spec.homepage = "https://github.com/Peyochanchan/mistral_translator"
   spec.license = "MIT"
