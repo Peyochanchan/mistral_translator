@@ -2,8 +2,10 @@
 
 Ruby gem for AI-powered translation and text summarization using Mistral AI API, with advanced Rails support.
 
+[![Ruby](https://img.shields.io/badge/ruby-%23CC342D.svg?style=flat&logo=ruby&logoColor=white)](https://www.ruby-lang.org/)
 [![Gem Version](https://badge.fury.io/rb/mistral_translator.svg)](https://badge.fury.io/rb/mistral_translator)
-
+[![RSpec](https://img.shields.io/badge/tested%20with-RSpec-red.svg)](https://rspec.info/)
+[![RuboCop](https://img.shields.io/badge/code%20style-RuboCop-brightgreen.svg)](https://rubocop.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Quick Start
@@ -222,11 +224,11 @@ The complete documentation includes:
 
 ### Quick Links
 
-- [Installation & Setup](https://peyochanchan.github.io/mistral_translator/installation)
-- [Rails Integration Guide](https://peyochanchan.github.io/mistral_translator/rails-integration/)
-- [API Methods Reference](https://peyochanchan.github.io/mistral_translator/api-reference/methods)
-- [Error Handling Guide](https://peyochanchan.github.io/mistral_translator/api-reference/errors)
-- [Monitoring Setup](https://peyochanchan.github.io/mistral_translator/advanced-usage/monitoring)
+- [Installation & Setup](https://peyochanchan.github.io/mistral_translator/#/installation)
+- [Rails Integration Guide](https://peyochanchan.github.io/mistral_translator/#/rails-integration/setup)
+- [API Methods Reference](https://peyochanchan.github.io/mistral_translator/#/api-reference/methods)
+- [Error Handling Guide](https://peyochanchan.github.io/mistral_translator/#/api-reference/errors)
+- [Monitoring Setup](https://peyochanchan.github.io/mistral_translator/#/advanced-usage/monitoring)
 
 ## Requirements
 
@@ -237,14 +239,28 @@ The complete documentation includes:
 ## Testing
 
 ```bash
-# Run tests
-bundle exec rspec
+# Install dependencies
+bundle install
 
-# Run with coverage
-COVERAGE=true bundle exec rspec
+# Run all unit tests (no API key required)
+bundle exec rspec spec/mistral_translator/
 
-# Integration tests (requires API key)
-MISTRAL_API_KEY=your_key bundle exec rspec --tag integration
+# Run all tests with documentation format
+bundle exec rspec --format documentation
+```
+
+### Integration Tests
+
+Integration tests require a real Mistral API key. **Never commit API keys to version control.**
+
+```bash
+# Set API key via environment variable (recommended)
+export MISTRAL_API_KEY="your_api_key_here"
+
+# Run integration tests
+bundle exec rspec spec/integration/
+
+**Security Note:** Use a dedicated test API key with limited quotas for integration testing.
 ```
 
 ## Contributing
@@ -259,15 +275,24 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](LICENSE.txt) for details.
 
 ## Support
 
 - 📖 [Documentation](https://peyochanchan.github.io/mistral_translator/)
 - 🐛 [Issues](../../issues)
-- 💬 [Discussions](../../discussions)
 - 📧 Support: Create an issue for help
+
+### ☕ Support the Project
+
+If this gem helps you, consider supporting its development:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/peyochanchan)
 
 ---
 
 Built with Ruby ❤️ by [@peyochanchan](https://github.com/peyochanchan)
+
+```
+
+```
