@@ -17,12 +17,15 @@ module MistralTranslator
 
       # Log seulement si pas déjà loggé récemment (évite la spam)
       def warn_once(message, key: nil, sensitive: false, ttl: 300)
-        @warn_cache ||= {}
-        cache_key = key || message
+        cache_mutex.synchronize do
+          @warn_cache ||= {}
+          cache_key = key || message
 
-        return unless should_log_warning?(cache_key, ttl)
+          return unless should_log_warning?(cache_key, ttl)
 
-        @warn_cache[cache_key] = Time.now
+          @warn_cache[cache_key] = Time.now
+        end
+
         log(:warn, message, sensitive)
       end
 
@@ -73,6 +76,10 @@ module MistralTranslator
         return true unless @warn_cache[key]
 
         Time.now - @warn_cache[key] > ttl
+      end
+
+      def cache_mutex
+        @cache_mutex ||= Mutex.new
       end
     end
   end

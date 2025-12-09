@@ -3,6 +3,7 @@ PATH
   specs:
     mistral_translator (0.2.1)
       net-http (~> 0.4)
+      net-http-persistent (~> 4.0)
 
 GEM
   remote: https://rubygems.org/
@@ -12,6 +13,7 @@ GEM
     ast (2.4.3)
     base64 (0.3.0)
     bigdecimal (3.2.2)
+    connection_pool (2.5.5)
     crack (1.0.0)
       bigdecimal
       rexml
@@ -22,6 +24,8 @@ GEM
     lint_roller (1.1.0)
     net-http (0.6.0)
       uri
+    net-http-persistent (4.0.6)
+      connection_pool (~> 2.2, >= 2.2.4)
     parallel (1.27.0)
     parser (3.3.9.0)
       ast (~> 2.4.1)

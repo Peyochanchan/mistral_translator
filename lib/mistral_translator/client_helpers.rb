@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "net/http/persistent"
+
 module MistralTranslator
   module ClientHelpers
     # Helper pour la gestion des requêtes HTTP
@@ -9,14 +11,10 @@ module MistralTranslator
 
         request_body = build_request_body(prompt, max_tokens, temperature)
 
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = (uri.scheme == "https")
-        http.read_timeout = 60 # 60 secondes de timeout
-
         request = Net::HTTP::Post.new(uri.path, headers)
         request.body = request_body.to_json
 
-        response = http.request(request)
+        response = http_pool.request(uri, request)
         log_request_response(request_body, response)
 
         response
@@ -24,6 +22,38 @@ module MistralTranslator
         raise ApiError, "Request timeout: #{e.message}"
       rescue Net::HTTPError => e
         raise ApiError, "HTTP error: #{e.message}"
+      end
+
+      def http_pool
+        @http_pool ||= begin
+          pool = Net::HTTP::Persistent.new(name: "mistral_translator")
+          pool.read_timeout = 60
+          pool.idle_timeout = 30
+          pool.open_timeout = MistralTranslator.configuration.ssl_timeout
+          pool.max_requests = 100
+
+          # SSL/TLS configuration
+          configure_ssl(pool)
+
+          pool
+        end
+      end
+
+      def configure_ssl(pool)
+        config = MistralTranslator.configuration
+
+        # SSL verify mode
+        pool.verify_mode = case config.ssl_verify_mode
+                           when :peer then OpenSSL::SSL::VERIFY_PEER
+                           when :none then OpenSSL::SSL::VERIFY_NONE
+                           else config.ssl_verify_mode
+                           end
+
+        # Custom CA certificate file
+        pool.ca_file = config.ssl_ca_file if config.ssl_ca_file
+
+        # Custom CA certificates directory
+        pool.ca_path = config.ssl_ca_path if config.ssl_ca_path
       end
 
       def build_request_body(prompt, max_tokens, temperature)

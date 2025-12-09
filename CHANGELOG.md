@@ -1,5 +1,28 @@
 ## [Unreleased]
 
+## [0.3.0] - 2025-12-09
+
+### Added
+
+- Thread-safe metrics with Mutex protection for concurrent usage
+- Connection pooling with net-http-persistent (automatic connection reuse)
+- SSL/TLS configuration options: `ssl_verify_mode`, `ssl_ca_file`, `ssl_ca_path`, `ssl_timeout`
+- Thread-safe logger cache for `warn_once` method
+- Comprehensive concurrent/async documentation with SolidQueue, Sidekiq, Concurrent Ruby examples
+- 39 new tests for thread-safety, SSL configuration, and connection pooling
+
+### Changed
+
+- HTTP client now uses Net::HTTP::Persistent for better performance
+- Configuration metrics now thread-safe across concurrent requests
+- Documentation reorganized with SolidQueue as recommended background job backend
+
+### Performance
+
+- Connection pooling reduces TCP handshake overhead
+- Thread-safe implementation enables safe concurrent translations
+- Configurable SSL timeout for production environments
+
 ## [0.2.0] - 2025-09-09
 
 ### Added

@@ -246,6 +246,86 @@ RSpec.describe MistralTranslator::Configuration do
     end
   end
 
+  describe "SSL/TLS configuration" do
+    it "sets default SSL values" do
+      expect(config.ssl_verify_mode).to eq(:peer)
+      expect(config.ssl_ca_file).to be_nil
+      expect(config.ssl_ca_path).to be_nil
+      expect(config.ssl_timeout).to eq(60)
+    end
+
+    it "allows setting custom SSL verify mode" do
+      config.ssl_verify_mode = :none
+      expect(config.ssl_verify_mode).to eq(:none)
+    end
+
+    it "allows setting custom CA file" do
+      config.ssl_ca_file = "/path/to/ca.pem"
+      expect(config.ssl_ca_file).to eq("/path/to/ca.pem")
+    end
+
+    it "allows setting custom CA path" do
+      config.ssl_ca_path = "/path/to/certs"
+      expect(config.ssl_ca_path).to eq("/path/to/certs")
+    end
+
+    it "allows setting custom SSL timeout" do
+      config.ssl_timeout = 30
+      expect(config.ssl_timeout).to eq(30)
+    end
+  end
+
+  describe "thread-safety of metrics" do
+    before { config.enable_metrics = true }
+
+    it "handles concurrent metric updates safely" do
+      threads = 10.times.map do |i|
+        Thread.new do
+          10.times do
+            config.trigger_translation_start("en", "fr", 100)
+            config.trigger_translation_complete("en", "fr", 100, 110, 0.5)
+          end
+        end
+      end
+
+      threads.each(&:join)
+
+      metrics = config.metrics
+      expect(metrics[:total_translations]).to eq(100) # 10 threads * 10 calls
+      expect(metrics[:total_characters]).to eq(10_000) # 100 * 100 chars
+    end
+
+    it "handles concurrent error tracking safely" do
+      threads = 5.times.map do
+        Thread.new do
+          20.times do
+            config.trigger_translation_error("en", "fr", StandardError.new, 1)
+          end
+        end
+      end
+
+      threads.each(&:join)
+
+      metrics = config.metrics
+      expect(metrics[:errors_count]).to eq(100) # 5 threads * 20 errors
+    end
+
+    it "handles concurrent rate limit tracking safely" do
+      threads = 5.times.map do
+        Thread.new do
+          10.times do
+            config.trigger_rate_limit("en", "fr", 2, 1)
+          end
+        end
+      end
+
+      threads.each(&:join)
+
+      metrics = config.metrics
+      expect(metrics[:rate_limits_hit]).to eq(50) # 5 threads * 10 hits
+    end
+  end
+
   describe "#setup_rails_logging" do
     context "when Rails is defined" do
       before do

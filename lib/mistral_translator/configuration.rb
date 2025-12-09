@@ -4,7 +4,8 @@ module MistralTranslator
   class Configuration
     attr_accessor :api_key, :model, :default_max_tokens, :default_temperature, :retry_delays,
                   :on_translation_start, :on_translation_complete, :on_translation_error,
-                  :on_rate_limit, :on_batch_complete, :enable_metrics
+                  :on_rate_limit, :on_batch_complete, :enable_metrics,
+                  :ssl_verify_mode, :ssl_ca_file, :ssl_ca_path, :ssl_timeout
     attr_reader :api_url
 
     def initialize
@@ -23,7 +24,14 @@ module MistralTranslator
       @on_batch_complete = nil
       @enable_metrics = false
 
-      # Métriques intégrées
+      # SSL/TLS configuration
+      @ssl_verify_mode = :peer  # :peer, :none, or OpenSSL constant
+      @ssl_ca_file = nil        # Path to CA certificate file
+      @ssl_ca_path = nil        # Path to CA certificates directory
+      @ssl_timeout = 60         # SSL handshake timeout in seconds
+
+      # Métriques intégrées (thread-safe avec mutex)
+      @metrics_mutex = Mutex.new
       @metrics = {
         total_translations: 0,
         total_characters: 0,
@@ -54,9 +62,11 @@ module MistralTranslator
 
       return unless @enable_metrics
 
-      @metrics[:total_translations] += 1
-      @metrics[:total_characters] += text_length
-      @metrics[:translations_by_language]["#{from_locale}->#{to_locale}"] += 1
+      @metrics_mutex.synchronize do
+        @metrics[:total_translations] += 1
+        @metrics[:total_characters] += text_length
+        @metrics[:translations_by_language]["#{from_locale}->#{to_locale}"] += 1
+      end
     end
 
     def trigger_translation_complete(from_locale, to_locale, original_length, translated_length, duration)
@@ -64,7 +74,9 @@ module MistralTranslator
 
       return unless @enable_metrics
 
-      @metrics[:total_duration] += duration
+      @metrics_mutex.synchronize do
+        @metrics[:total_duration] += duration
+      end
     end
 
     def trigger_translation_error(from_locale, to_locale, error, attempt)
@@ -72,7 +84,9 @@ module MistralTranslator
 
       return unless @enable_metrics
 
-      @metrics[:errors_count] += 1
+      @metrics_mutex.synchronize do
+        @metrics[:errors_count] += 1
+      end
     end
 
     def trigger_rate_limit(from_locale, to_locale, wait_time, attempt)
@@ -80,7 +94,9 @@ module MistralTranslator
 
       return unless @enable_metrics
 
-      @metrics[:rate_limits_hit] += 1
+      @metrics_mutex.synchronize do
+        @metrics[:rate_limits_hit] += 1
+      end
     end
 
     def trigger_batch_complete(batch_size, total_duration, success_count, error_count)
@@ -91,35 +107,39 @@ module MistralTranslator
     def metrics
       return {} unless @enable_metrics
 
-      @metrics.merge({
-                       average_translation_time: if @metrics[:total_translations].positive?
-                                                   (@metrics[:total_duration] / @metrics[:total_translations]).round(3)
-                                                 else
-                                                   0
-                                                 end,
-                       average_characters_per_translation: if @metrics[:total_translations].positive?
-                                                             (@metrics[:total_characters] /
-                                                               @metrics[:total_translations]).round(0)
-                                                           else
-                                                             0
-                                                           end,
-                       error_rate: if @metrics[:total_translations].positive?
-                                     ((@metrics[:errors_count].to_f / @metrics[:total_translations]) * 100).round(2)
-                                   else
-                                     0
-                                   end
-                     })
+      @metrics_mutex.synchronize do
+        @metrics.merge({
+                         average_translation_time: if @metrics[:total_translations].positive?
+                                                     (@metrics[:total_duration] / @metrics[:total_translations]).round(3)
+                                                   else
+                                                     0
+                                                   end,
+                         average_characters_per_translation: if @metrics[:total_translations].positive?
+                                                               (@metrics[:total_characters] /
+                                                                 @metrics[:total_translations]).round(0)
+                                                             else
+                                                               0
+                                                             end,
+                         error_rate: if @metrics[:total_translations].positive?
+                                       ((@metrics[:errors_count].to_f / @metrics[:total_translations]) * 100).round(2)
+                                     else
+                                       0
+                                     end
+                       })
+      end
     end
 
     def reset_metrics!
-      @metrics = {
-        total_translations: 0,
-        total_characters: 0,
-        total_duration: 0.0,
-        rate_limits_hit: 0,
-        errors_count: 0,
-        translations_by_language: Hash.new(0)
-      }
+      @metrics_mutex.synchronize do
+        @metrics = {
+          total_translations: 0,
+          total_characters: 0,
+          total_duration: 0.0,
+          rate_limits_hit: 0,
+          errors_count: 0,
+          translations_by_language: Hash.new(0)
+        }
+      end
     end
 
     # Configuration helpers pour les callbacks les plus communs

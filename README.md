@@ -32,7 +32,7 @@ MistralTranslator.translate("Bonjour le monde", from: "fr", to: "en")
 - **Multi-level summarization** with translation
 - **Robust error handling** with automatic retry and fallback
 - **Complete monitoring** with metrics and callbacks
-- **Asynchronous jobs** for background processing
+- **Thread-safe & concurrent** with connection pooling ([docs](https://peyochanchan.github.io/mistral_translator/#/advanced-usage/concurrent-async))
 - **Built-in rate limiting** and security
 
 ## Supported Languages

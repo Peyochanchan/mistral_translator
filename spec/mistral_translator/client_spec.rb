@@ -451,5 +451,79 @@ RSpec.describe MistralTranslator::Client do
         expect(result[:results].last[:error]).to eq("Error")
       end
     end
+
+    describe "#http_pool" do
+      it "creates Net::HTTP::Persistent pool" do
+        pool = client.send(:http_pool)
+        expect(pool).to be_a(Net::HTTP::Persistent)
+      end
+
+      it "configures pool with correct timeouts" do
+        pool = client.send(:http_pool)
+        expect(pool.read_timeout).to eq(60)
+        expect(pool.idle_timeout).to eq(30)
+        expect(pool.max_requests).to eq(100)
+      end
+
+      it "uses SSL timeout from configuration" do
+        MistralTranslator.configure { |c| c.ssl_timeout = 45 }
+
+        # Reset pool to pick up new config
+        client.instance_variable_set(:@http_pool, nil)
+
+        pool = client.send(:http_pool)
+        expect(pool.open_timeout).to eq(45)
+      end
+
+      it "reuses the same pool instance" do
+        pool1 = client.send(:http_pool)
+        pool2 = client.send(:http_pool)
+        expect(pool1).to be(pool2)
+      end
+    end
+
+    describe "#configure_ssl" do
+      let(:pool) { Net::HTTP::Persistent.new(name: "test") }
+
+      it "sets verify_mode to VERIFY_PEER by default" do
+        client.send(:configure_ssl, pool)
+        expect(pool.verify_mode).to eq(OpenSSL::SSL::VERIFY_PEER)
+      end
+
+      it "sets verify_mode to VERIFY_NONE when configured" do
+        MistralTranslator.configure { |c| c.ssl_verify_mode = :none }
+        client.send(:configure_ssl, pool)
+        expect(pool.verify_mode).to eq(OpenSSL::SSL::VERIFY_NONE)
+      end
+
+      it "accepts OpenSSL constant directly" do
+        MistralTranslator.configure { |c| c.ssl_verify_mode = OpenSSL::SSL::VERIFY_PEER }
+        client.send(:configure_ssl, pool)
+        expect(pool.verify_mode).to eq(OpenSSL::SSL::VERIFY_PEER)
+      end
+
+      it "sets CA file when configured" do
+        MistralTranslator.configure { |c| c.ssl_ca_file = "/path/to/ca.pem" }
+        client.send(:configure_ssl, pool)
+        expect(pool.ca_file).to eq("/path/to/ca.pem")
+      end
+
+      it "sets CA path when configured" do
+        MistralTranslator.configure { |c| c.ssl_ca_path = "/path/to/certs" }
+        client.send(:configure_ssl, pool)
+        expect(pool.ca_path).to eq("/path/to/certs")
+      end
+
+      it "does not set CA file or path when nil" do
+        MistralTranslator.configure do |c|
+          c.ssl_ca_file = nil
+          c.ssl_ca_path = nil
+        end
+
+        client.send(:configure_ssl, pool)
+        expect(pool.ca_file).to be_nil
+        expect(pool.ca_path).to be_nil
+      end
+    end
   end
 end
