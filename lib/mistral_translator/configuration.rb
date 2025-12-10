@@ -110,7 +110,8 @@ module MistralTranslator
       @metrics_mutex.synchronize do
         @metrics.merge({
                          average_translation_time: if @metrics[:total_translations].positive?
-                                                     (@metrics[:total_duration] / @metrics[:total_translations]).round(3)
+                                                     (@metrics[:total_duration] /
+                                                       @metrics[:total_translations]).round(3)
                                                    else
                                                      0
                                                    end,

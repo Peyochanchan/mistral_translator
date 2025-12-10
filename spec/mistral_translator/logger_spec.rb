@@ -29,9 +29,7 @@ RSpec.describe MistralTranslator::Logger do
   describe ".debug" do
     it "logs debug messages" do
       # Stub Rails logger if it exists
-      if defined?(Rails)
-        allow(Rails.logger).to receive(:debug) if Rails.respond_to?(:logger)
-      end
+      allow(Rails.logger).to receive(:debug) if defined?(Rails) && Rails.respond_to?(:logger)
 
       expect { described_class.debug("debug message") }.not_to raise_error
     end
@@ -93,7 +91,7 @@ RSpec.describe MistralTranslator::Logger do
   describe ".debug_if_verbose" do
     context "when MISTRAL_TRANSLATOR_VERBOSE is true" do
       around do |example|
-        original_value = ENV["MISTRAL_TRANSLATOR_VERBOSE"]
+        original_value = ENV.fetch("MISTRAL_TRANSLATOR_VERBOSE", nil)
         ENV["MISTRAL_TRANSLATOR_VERBOSE"] = "true"
         example.run
         ENV["MISTRAL_TRANSLATOR_VERBOSE"] = original_value
@@ -109,7 +107,7 @@ RSpec.describe MistralTranslator::Logger do
 
     context "when MISTRAL_TRANSLATOR_VERBOSE is not set" do
       around do |example|
-        original_value = ENV["MISTRAL_TRANSLATOR_VERBOSE"]
+        original_value = ENV.fetch("MISTRAL_TRANSLATOR_VERBOSE", nil)
         ENV["MISTRAL_TRANSLATOR_VERBOSE"] = nil
         example.run
         ENV["MISTRAL_TRANSLATOR_VERBOSE"] = original_value

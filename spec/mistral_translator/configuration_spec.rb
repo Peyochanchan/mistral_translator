@@ -279,7 +279,7 @@ RSpec.describe MistralTranslator::Configuration do
     before { config.enable_metrics = true }
 
     it "handles concurrent metric updates safely" do
-      threads = 10.times.map do |i|
+      threads = 10.times.map do |_i|
         Thread.new do
           10.times do
             config.trigger_translation_start("en", "fr", 100)
