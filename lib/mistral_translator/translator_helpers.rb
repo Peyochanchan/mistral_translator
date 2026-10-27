@@ -228,10 +228,14 @@ module MistralTranslator
 
     # Helper pour traductions multi-cibles
     module MultiTargetHelper
-      def translate_to_multiple_batch(text, source_locale, target_locales, context: nil, glossary: nil)
+      DEFAULT_MULTI_TARGET_OPTIONS = { context: nil, glossary: nil }.freeze
+
+      # options : context, glossary, preserve_html
+      def translate_to_multiple_batch(text, source_locale, target_locales, **options)
+        options = DEFAULT_MULTI_TARGET_OPTIONS.merge(options)
         requests = target_locales.map do |target_locale|
           {
-            prompt: build_translation_prompt(text, source_locale, target_locale, context: context, glossary: glossary),
+            prompt: build_translation_prompt(text, source_locale, target_locale, **options),
             from: source_locale,
             to: target_locale,
             original_text: text
@@ -252,13 +256,14 @@ module MistralTranslator
         results
       end
 
-      def translate_to_multiple_sequential(text, source_locale, target_locales, context: nil, glossary: nil)
+      def translate_to_multiple_sequential(text, source_locale, target_locales, **options)
+        options = DEFAULT_MULTI_TARGET_OPTIONS.merge(options)
         results = {}
 
         target_locales.each_with_index do |target_locale, index|
           sleep(MistralTranslator::Translator::DEFAULT_RETRY_DELAY) if index.positive?
           results[target_locale] =
-            translate_with_retry(text, source_locale, target_locale, context: context, glossary: glossary)
+            translate_with_retry(text, source_locale, target_locale, **options)
         end
 
         results

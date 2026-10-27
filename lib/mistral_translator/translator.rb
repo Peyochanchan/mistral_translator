@@ -71,12 +71,13 @@ module MistralTranslator
       source_locale = LocaleHelper.validate_locale!(from)
       target_locales = Array(to).map { |locale| LocaleHelper.validate_locale!(locale) }
 
+      translation_options = { context: options[:context], glossary: options[:glossary] }
+      translation_options[:preserve_html] = true if options[:preserve_html]
+
       if options[:use_batch] && target_locales.size > 3
-        translate_to_multiple_batch(text, source_locale, target_locales, context: options[:context],
-                                                                         glossary: options[:glossary])
+        translate_to_multiple_batch(text, source_locale, target_locales, **translation_options)
       else
-        translate_to_multiple_sequential(text, source_locale, target_locales, context: options[:context],
-                                                                              glossary: options[:glossary])
+        translate_to_multiple_sequential(text, source_locale, target_locales, **translation_options)
       end
     end
 
