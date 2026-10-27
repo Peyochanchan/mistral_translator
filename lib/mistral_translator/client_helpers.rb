@@ -101,9 +101,9 @@ module MistralTranslator
           # Rate limit sera géré séparément
           nil
         when 400..499
-          raise ApiError, "Client error (#{response.code})}"
+          raise ApiError, "Client error (#{response.code})"
         when 500..599
-          raise ApiError, "Server error (#{response.code})}"
+          raise ApiError, "Server error (#{response.code})"
         end
       end
 

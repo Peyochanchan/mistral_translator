@@ -102,6 +102,12 @@ RSpec.describe MistralTranslator::Adapters do
           allow(adapter).to receive(:get_field_value).and_return(mock_rich_text)
           expect(adapter.content?("description", :fr)).to be false
         end
+
+        it "checks the plain text of an ActionText::Content" do
+          stub_const("ActionText::Content", Class.new { def to_plain_text = " " })
+          allow(adapter).to receive(:get_field_value).and_return(ActionText::Content.new)
+          expect(adapter.content?("description", :fr)).to be false
+        end
       end
     end
 
@@ -117,19 +123,36 @@ RSpec.describe MistralTranslator::Adapters do
       end
 
       context "with ActionText" do
-        let(:mock_rich_text) do
-          body = double("body", to_s: "<p>HTML content</p>")
-          double("ActionText::RichText", body: body)
+        let(:stored_html) { '<p>Hi</p><action-text-attachment sgid="abc"></action-text-attachment>' }
+        let(:body) do
+          instance_double(ActionText::Content, to_html: stored_html,
+                                               to_s: %(<div class="trix-content"><p>Hi</p><figure>…</figure></div>))
         end
+        let(:rich_text) { ActionText::RichText.new(body) }
 
         before do
-          stub_const("ActionText::RichText", Class.new)
-          allow(mock_rich_text).to receive(:is_a?).with(ActionText::RichText).and_return(true)
+          stub_const("ActionText::Content", Class.new do
+            def to_html = ""
+            def to_s = ""
+          end)
+          stub_const("ActionText::RichText", Struct.new(:body))
         end
 
-        it "returns HTML body for rich text" do
-          allow(adapter).to receive(:get_field_value).and_return(mock_rich_text)
-          expect(adapter.get_translatable_content("description", :fr)).to eq("<p>HTML content</p>")
+        it "returns the stored HTML of a rich text, not its rendered layout" do
+          allow(adapter).to receive(:get_field_value).and_return(rich_text)
+          expect(adapter.get_translatable_content("description", :fr)).to eq(stored_html)
+        end
+
+        it "returns the stored HTML of an ActionText::Content" do
+          content = ActionText::Content.new
+          allow(content).to receive(:to_html).and_return(stored_html)
+          allow(adapter).to receive(:get_field_value).and_return(content)
+          expect(adapter.get_translatable_content("description", :fr)).to eq(stored_html)
+        end
+
+        it "returns an empty string for a rich text without body" do
+          allow(adapter).to receive(:get_field_value).and_return(ActionText::RichText.new(nil))
+          expect(adapter.get_translatable_content("description", :fr)).to eq("")
         end
       end
     end
@@ -420,7 +443,8 @@ RSpec.describe MistralTranslator::Adapters do
         allow(mock_adapter).to receive_messages(
           detect_source_locale: :fr,
           get_translatable_content: "Content français",
-          available_locales: %i[fr en es]
+          available_locales: %i[fr en es],
+          rich_text_field?: false
         )
         allow(mock_adapter).to receive(:set_field_value)
       end
@@ -517,6 +541,63 @@ RSpec.describe MistralTranslator::Adapters do
 
         result = service.translate_to_all_locales
         expect(result).to be false
+      end
+
+      it "preserves HTML for rich text fields only" do
+        allow(service).to receive(:sleep)
+        allow(mock_adapter).to receive(:rich_text_field?) { |field, _locale| field == "description" }
+
+        service.translate_to_all_locales
+
+        expect(MistralTranslator).to have_received(:translate)
+          .with("Content français", from: "fr", to: "en", preserve_html: true).once
+        expect(MistralTranslator).to have_received(:translate)
+          .with("Content français", from: "fr", to: "en").once
+      end
+
+      it "saves the other translations and returns false when one fails" do
+        allow(service).to receive(:sleep)
+        allow(MistralTranslator).to receive(:translate) do |_text, to:, **|
+          raise MistralTranslator::ApiError, "Server error" if to == "es"
+
+          "Translated"
+        end
+
+        expect(service.translate_to_all_locales).to be false
+        expect(mock_adapter).to have_received(:set_field_value).with("name", :en, "Translated")
+        expect(mock_adapter).to have_received(:save_record!)
+      end
+
+      it "gives up after a few rate limit retries" do
+        allow(service).to receive(:sleep)
+        allow(mock_adapter).to receive(:get_translatable_content).with("description", :fr).and_return("")
+        allow(mock_adapter).to receive(:available_locales).and_return(%i[fr en])
+        allow(MistralTranslator).to receive(:translate).and_raise(MistralTranslator::RateLimitError, "Rate limited")
+
+        expect(service.translate_to_all_locales).to be false
+        expect(MistralTranslator).to have_received(:translate)
+          .exactly(MistralTranslator::Adapters::RecordTranslationService::MAX_RATE_LIMIT_RETRIES + 1).times
+      end
+
+      it "translates only to the requested target locales" do
+        limited = MistralTranslator::Adapters::RecordTranslationService.new(
+          mock_record, ["name"], source_locale: "fr", target_locales: ["es"]
+        )
+        allow(limited).to receive(:sleep)
+
+        limited.translate_to_all_locales
+
+        expect(MistralTranslator).to have_received(:translate).once
+        expect(MistralTranslator).to have_received(:translate).with("Content français", from: "fr", to: "es")
+      end
+
+      it "does not pause after a failed translation" do
+        allow(service).to receive(:sleep)
+        allow(MistralTranslator).to receive(:translate).and_raise(MistralTranslator::ApiError, "Server error")
+
+        service.translate_to_all_locales
+
+        expect(service).not_to have_received(:sleep)
       end
     end
   end

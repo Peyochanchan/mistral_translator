@@ -42,30 +42,32 @@ module MistralTranslator
         @mutex = Mutex.new
       end
 
+      # Réserve un créneau sous verrou, puis attend hors du verrou : les autres
+      # threads réservent les créneaux suivants au lieu d'être bloqués.
       def wait_and_record!
-        @mutex.synchronize do
-          cleanup_old_requests
-          if @requests.size >= @max_requests
-            wait_time = calculate_wait_time
-            sleep(wait_time) if wait_time.positive?
-          end
-          @requests << Time.now
+        wait_time = @mutex.synchronize do
+          now = Time.now
+          cleanup_old_requests(now)
+          slot = next_slot(now)
+          @requests << slot
+          slot - now
         end
+        sleep(wait_time) if wait_time.positive?
       end
 
       private
 
-      def cleanup_old_requests
-        cutoff_time = Time.now - @window_seconds
+      def cleanup_old_requests(now)
+        cutoff_time = now - @window_seconds
         @requests.reject! { |request_time| request_time < cutoff_time }
       end
 
-      def calculate_wait_time
-        return 0 if @requests.empty?
+      # Premier instant où la fenêtre compte moins de max_requests requêtes,
+      # créneaux déjà réservés compris
+      def next_slot(now)
+        return now if @requests.size < @max_requests
 
-        oldest_request = @requests.min
-        time_until_oldest_expires = (oldest_request + @window_seconds) - Time.now
-        [time_until_oldest_expires, 0].max
+        @requests.sort[@requests.size - @max_requests] + @window_seconds
       end
     end
   end

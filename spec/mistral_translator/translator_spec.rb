@@ -121,7 +121,7 @@ RSpec.describe MistralTranslator::Translator do
         )
       end
 
-      it "retries indefinitely on RateLimitError" do
+      it "retries on RateLimitError" do
         call_count = 0
         allow(mock_client).to receive(:complete) do
           call_count += 1
@@ -133,6 +133,18 @@ RSpec.describe MistralTranslator::Translator do
         result = translator.translate("Hello", from: "en", to: "fr")
         expect(result).to eq("Bonjour")
         expect(call_count).to eq(3)
+      end
+
+      it "gives up after a few RateLimitError retries" do
+        allow(translator).to receive(:sleep)
+        call_count = 0
+        allow(mock_client).to receive(:complete) do
+          call_count += 1
+          raise MistralTranslator::RateLimitError
+        end
+
+        expect { translator.translate("Hello", from: "en", to: "fr") }.to raise_error(MistralTranslator::RateLimitError)
+        expect(call_count).to eq(4)
       end
     end
   end
@@ -266,6 +278,24 @@ RSpec.describe MistralTranslator::Translator do
         .and_return("Bonjour")
 
       translator.translate_to_multiple("Hello", from: "en", to: "fr", context: context, glossary: glossary)
+    end
+
+    it "passes preserve_html to sequential translations" do
+      expect(translator).to receive(:translate_with_retry)
+        .with("<p>Hello</p>", "en", "fr", context: nil, glossary: nil, preserve_html: true)
+        .and_return("<p>Bonjour</p>")
+
+      translator.translate_to_multiple("<p>Hello</p>", from: "en", to: "fr", preserve_html: true)
+    end
+
+    it "passes preserve_html to batch prompts" do
+      targets = %w[fr es de it]
+      allow(mock_client).to receive(:translate_batch).and_return([])
+      expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
+        .with("<p>Hello</p>", "en", anything, preserve_html: true)
+        .exactly(targets.size).times.and_call_original
+
+      translator.translate_to_multiple("<p>Hello</p>", from: "en", to: targets, use_batch: true, preserve_html: true)
     end
   end
 

@@ -129,7 +129,7 @@ RSpec.describe MistralTranslator::Summarizer do
         )
       end
 
-      it "retries indefinitely on RateLimitError" do
+      it "retries on RateLimitError" do
         call_count = 0
         allow(mock_client).to receive(:complete) do
           call_count += 1
@@ -141,6 +141,18 @@ RSpec.describe MistralTranslator::Summarizer do
         result = summarizer.summarize(long_text)
         expect(result).to eq("This is a short summary")
         expect(call_count).to eq(3)
+      end
+
+      it "gives up after a few RateLimitError retries" do
+        allow(summarizer).to receive(:sleep)
+        call_count = 0
+        allow(mock_client).to receive(:complete) do
+          call_count += 1
+          raise MistralTranslator::RateLimitError
+        end
+
+        expect { summarizer.summarize(long_text) }.to raise_error(MistralTranslator::RateLimitError)
+        expect(call_count).to eq(4)
       end
     end
   end

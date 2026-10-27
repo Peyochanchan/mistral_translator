@@ -143,7 +143,7 @@ RSpec.describe MistralTranslator::Client do
 
         expect { client.complete(prompt, context: context) }.to raise_error(
           MistralTranslator::ApiError,
-          /Server error \(500\)/
+          "Server error (500)"
         )
       end
 

@@ -1,5 +1,27 @@
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-28
+
+### Fixed
+
+- Rich text adapters send the stored ActionText HTML (`to_html`) instead of the rendered one (`to_s`), which wrapped every translation in an extra `<div class="trix-content">` and inlined the rendered attachments. `ActionText::Content` values are now recognised too, not only `ActionText::RichText`.
+- `RecordTranslationService` passes `preserve_html: true` for rich text fields.
+- `RecordTranslationService#translate_to_all_locales` returns `false` when a translation fails. It returned `true`, so failures went unnoticed; successful translations are still saved.
+- `RecordTranslationService`, `Translator` and `Summarizer` stop retrying after a few `RateLimitError`s and raise, instead of retrying forever on top of the client's own backoff.
+- `translate_to_multiple` passes `preserve_html` to each translation; the option was ignored.
+- `translate_with_mistral` raised `ArgumentError` on every call. `from:` is now the source locale and `to:` the target locales, through a new `target_locales:` option of `RecordTranslationService`.
+- A glossary given as a string no longer raises `NoMethodError` in `PromptBuilder`.
+- `BasicRateLimiter` no longer sleeps while holding its lock, which blocked every other thread.
+- HTTP error messages no longer end with a stray brace.
+
+### Changed
+
+- CI token restricted to read access, and development dependencies updated (addressable, json, uri).
+
+### Removed
+
+- Unused helpers `log_prompt_debug` and `build_html_validation_instruction`.
+
 ## [0.3.1] - 2026-10-27
 
 ### Fixed

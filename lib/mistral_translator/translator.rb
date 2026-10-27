@@ -71,12 +71,13 @@ module MistralTranslator
       source_locale = LocaleHelper.validate_locale!(from)
       target_locales = Array(to).map { |locale| LocaleHelper.validate_locale!(locale) }
 
+      translation_options = { context: options[:context], glossary: options[:glossary] }
+      translation_options[:preserve_html] = true if options[:preserve_html]
+
       if options[:use_batch] && target_locales.size > 3
-        translate_to_multiple_batch(text, source_locale, target_locales, context: options[:context],
-                                                                         glossary: options[:glossary])
+        translate_to_multiple_batch(text, source_locale, target_locales, **translation_options)
       else
-        translate_to_multiple_sequential(text, source_locale, target_locales, context: options[:context],
-                                                                              glossary: options[:glossary])
+        translate_to_multiple_sequential(text, source_locale, target_locales, **translation_options)
       end
     end
 
@@ -184,9 +185,12 @@ module MistralTranslator
         translate_with_retry(text, source_locale, target_locale, attempt + 1, **options)
       end
     rescue RateLimitError
+      # Le client a déjà relancé avec backoff : quelques tentatives de plus suffisent.
+      raise if attempt >= DEFAULT_RETRY_COUNT
+
       log_rate_limit_hit(source_locale, target_locale)
       sleep(DEFAULT_RETRY_DELAY)
-      retry
+      translate_with_retry(text, source_locale, target_locale, attempt + 1, **options)
     end
 
     # Ces méthodes sont héritées via RequestHelper
