@@ -51,14 +51,6 @@ module MistralTranslator
           Ne traduis que le contenu textuel à l'intérieur des balises.
         HTML_INSTRUCTION
       end
-
-      def build_html_validation_instruction
-        <<~HTML_VALIDATION
-
-          IMPORTANT : Vérifie que le HTML est valide et bien formé.
-          Corrige toute erreur de structure HTML si nécessaire.
-        HTML_VALIDATION
-      end
     end
 
     # Helper pour les instructions de formatage

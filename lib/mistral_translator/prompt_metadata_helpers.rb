@@ -34,16 +34,5 @@ module MistralTranslator
       message = "Generated #{prompt_type} prompt for #{source_locale} -> #{target_locale}"
       Logger.debug_if_verbose(message, sensitive: false)
     end
-
-    def log_prompt_debug(_prompt)
-      return unless ENV["MISTRAL_TRANSLATOR_DEBUG"]
-
-      if defined?(Rails) && Rails.respond_to?(:logger)
-        Rails.logger.info message
-      elsif ENV["MISTRAL_TRANSLATOR_DEBUG"]
-        # Log de debug seulement si mode verbose activé
-        Logger.debug_if_verbose(message, sensitive: false)
-      end
-    end
   end
 end
