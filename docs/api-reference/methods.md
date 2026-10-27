@@ -268,7 +268,7 @@ Configure la gem avec un bloc.
 ```ruby
 MistralTranslator.configure do |config|
   config.api_key = ENV['MISTRAL_API_KEY']
-  config.model = "mistral-small"
+  config.model = "mistral-small-latest"
   config.retry_delays = [1, 2, 4, 8]
   config.enable_metrics = true
 end

@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Checks the gem against the real Mistral API.
+#
+# 1. The key is accepted and the default model is still served. Mistral retires
+#    model names; this works on the free plan, which can list models.
+# 2. If the plan allows generation, the VCR examples run against the API.
+#    The free plan has a quota of 0 requests per minute: they are then skipped.
+#
+# The key comes from MISTRAL_TEST_API_KEY (the weekly workflow), from .env, or is read
+# without echo. It is never printed, and cassettes store a placeholder instead
+# (spec/spec_helper.rb). Cassettes are not committed: they are deleted when
+# every example passes, and kept for inspection when one fails.
+#
+#   bin/check_api
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+cassettes=spec/fixtures/vcr_cassettes
+
+# Read from .env (ignored by git) without sourcing it: only this line is taken.
+if [ -z "${MISTRAL_TEST_API_KEY:-}" ] && [ -f .env ]; then
+  MISTRAL_TEST_API_KEY=$( (grep -E '^MISTRAL_TEST_API_KEY=' .env || true) | tail -n 1 | cut -d= -f2- | tr -d "\"'")
+fi
+if [ -z "${MISTRAL_TEST_API_KEY:-}" ]; then
+  read -rsp "Mistral API key: " MISTRAL_TEST_API_KEY
+  echo
+fi
+# A key pasted with surrounding spaces would be rejected.
+MISTRAL_TEST_API_KEY=$(printf '%s' "$MISTRAL_TEST_API_KEY" | tr -d '[:space:]')
+export MISTRAL_TEST_API_KEY
+
+mistral_status() {
+  curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${MISTRAL_TEST_API_KEY}" "$1"
+}
+
+# 1. Key and default model ------------------------------------------------------
+
+status=$(mistral_status "https://api.mistral.ai/v1/models")
+if [ "$status" != "200" ]; then
+  echo "The API rejected the key (HTTP ${status}). A new key can take a few minutes to become active."
+  # Diagnostics that reveal nothing of the key itself.
+  echo "Key length: ${#MISTRAL_TEST_API_KEY} characters (Mistral keys usually have 32)."
+  if [[ ! "$MISTRAL_TEST_API_KEY" =~ ^[A-Za-z0-9]+$ ]]; then
+    echo "The key contains characters other than letters and digits: check what was pasted."
+  fi
+  if [ "$(mistral_status "https://codestral.mistral.ai/v1/models")" = "200" ]; then
+    echo "This is a Codestral key: it only works on codestral.mistral.ai. Create a general API key."
+  fi
+  exit 1
+fi
+
+model=$(ruby -Ilib -e 'require "mistral_translator"; puts MistralTranslator::Configuration.new.model')
+status=$(mistral_status "https://api.mistral.ai/v1/models/${model}")
+if [ "$status" != "200" ]; then
+  echo "The default model \"${model}\" is not available (HTTP ${status}): change it in configuration.rb."
+  exit 1
+fi
+echo "Key accepted, default model \"${model}\" is available."
+
+# 2. Examples against the API, if the plan allows generation --------------------
+
+headers=$(curl -s -o /dev/null -D - -H "Authorization: Bearer ${MISTRAL_TEST_API_KEY}" -H "Content-Type: application/json" \
+  -d "{\"model\":\"${model}\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}],\"max_tokens\":1}" \
+  "https://api.mistral.ai/v1/chat/completions")
+status=$(printf '%s' "$headers" | awk 'NR == 1 { print $2 }')
+
+if [ "$status" != "200" ]; then
+  if printf '%s' "$headers" | grep -qiE '^x-ratelimit-limit-req-minute: *0[[:space:]]*$'; then
+    echo "No generation quota on this plan: the examples against the API were not run."
+    exit 0
+  fi
+  echo "A test completion failed (HTTP ${status})."
+  exit 1
+fi
+
+rm -f "$cassettes"/*.yml
+bundle exec rspec --tag vcr
+unset MISTRAL_TEST_API_KEY
+
+# Last line of defence: no cassette may contain a bearer token.
+if grep -rqE "Bearer [A-Za-z0-9]{16,}" "$cassettes"; then
+  echo "A cassette contains a bearer token: check the VCR filters, then delete the cassettes."
+  exit 1
+fi
+
+rm -f "$cassettes"/*.yml
+echo "Every example passed against the real API. Cassettes deleted."

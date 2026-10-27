@@ -5,7 +5,7 @@ module MistralTranslator
 
   # Informations additionnelles sur la gem
   API_VERSION = "v1"
-  SUPPORTED_MODEL = "mistral-small"
+  SUPPORTED_MODEL = "mistral-small-latest"
 
   # Méthode pour obtenir des informations complètes sur la version
   def self.version_info

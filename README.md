@@ -159,7 +159,7 @@ MistralTranslator.configure do |config|
   config.api_key = ENV['MISTRAL_API_KEY']
 
   # Optional
-  config.model = "mistral-small"                    # AI model to use
+  config.model = "mistral-small-latest"            # AI model to use (an alias that follows the current Mistral Small)
   config.retry_delays = [1, 2, 4, 8, 16]          # Retry delays in seconds
   config.enable_metrics = true                     # Enable performance metrics
 

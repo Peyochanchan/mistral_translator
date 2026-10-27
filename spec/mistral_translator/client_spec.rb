@@ -71,7 +71,7 @@ RSpec.describe MistralTranslator::Client do
         expect(WebMock).to have_requested(:post, "https://api.mistral.ai/v1/chat/completions")
           .with(
             body: {
-              model: "mistral-small",
+              model: "mistral-small-latest",
               messages: [{ role: "user", content: prompt }],
               max_tokens: 100,
               temperature: 0.7
@@ -370,7 +370,7 @@ RSpec.describe MistralTranslator::Client do
         body = client.send(:build_request_body, prompt, nil, nil)
 
         expect(body).to eq({
-                             model: "mistral-small",
+                             model: "mistral-small-latest",
                              messages: [{ role: "user", content: prompt }]
                            })
       end

@@ -7,7 +7,7 @@ RSpec.describe MistralTranslator::Configuration do
     it "sets default API values" do
       expect(config.api_key).to be_nil
       expect(config.api_url).to eq("https://api.mistral.ai")
-      expect(config.model).to eq("mistral-small")
+      expect(config.model).to eq("mistral-small-latest")
       expect(config.default_max_tokens).to be_nil
       expect(config.default_temperature).to be_nil
     end
@@ -426,7 +426,7 @@ RSpec.describe MistralTranslator do
 
       config = described_class.configuration
       expect(config.api_key).to be_nil
-      expect(config.model).to eq("mistral-small")
+      expect(config.model).to eq("mistral-small-latest")
       expect(config.api_url).to eq("https://api.mistral.ai")
       expect(config.enable_metrics).to be false
     end

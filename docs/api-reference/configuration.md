@@ -11,7 +11,7 @@ Référence complète des options de configuration.
 ```ruby
 MistralTranslator.configure do |config|
   config.api_key = ENV['MISTRAL_API_KEY']        # Obligatoire
-  config.model = "mistral-small"                 # Défaut
+  config.model = "mistral-small-latest"                 # Défaut
   config.api_url = "https://api.mistral.ai"      # URL API
   config.default_max_tokens = 4000               # Limite tokens
   config.default_temperature = 0.3               # Créativité (0-1)

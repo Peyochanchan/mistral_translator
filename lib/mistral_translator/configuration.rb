@@ -11,7 +11,7 @@ module MistralTranslator
     def initialize
       @api_key = nil
       @api_url = "https://api.mistral.ai"
-      @model = "mistral-small"
+      @model = "mistral-small-latest"
       @default_max_tokens = nil
       @default_temperature = nil
       @retry_delays = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]

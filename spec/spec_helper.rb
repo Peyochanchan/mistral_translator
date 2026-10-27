@@ -124,9 +124,9 @@ RSpec.configure do |config|
 
   # Afficher les informations sur les tests d'intégration au début
   config.before(:suite) do
+    # Never print any part of the key: it would end up in terminals and CI logs.
     if ApiKeyHelper.real_api_available?
-      puts "🔑 Real Mistral API available for integration tests"
-      puts "   Using key: #{ApiKeyHelper.test_api_key[0..8]}...#{ApiKeyHelper.test_api_key[-4..]}"
+      puts "🔑 Real Mistral API key detected: VCR cassettes can be recorded"
     else
       puts "⚠️  No real API key - integration tests will be skipped"
       puts "   Set MISTRAL_TEST_API_KEY or MISTRAL_API_KEY to run integration tests"
@@ -144,16 +144,22 @@ RSpec.configure do |config|
   end
 
   # Configuration pour les tests VCR
+  # With a key, the examples run against the real API and record cassettes
+  # (bin/check_api, and the weekly workflow). Cassettes are not
+  # committed: without a key, an existing local recording is replayed, and the
+  # examples are skipped otherwise.
   config.around(:each, :vcr) do |example|
-    if ApiKeyHelper.real_api_available?
-      cassette_name = example.metadata[:cassette_name] ||
-                      generate_cassette_name_from_example(example)
+    cassette_name = example.metadata[:cassette_name] ||
+                    generate_cassette_name_from_example(example)
 
-      VCR.use_cassette(cassette_name) do
-        example.run
-      end
+    if ApiKeyHelper.real_api_available?
+      # Spaces out the calls: the free API plan allows about one request per second.
+      sleep(Float(ENV.fetch("VCR_RECORD_PAUSE", "1.5")))
+      VCR.use_cassette(cassette_name) { example.run }
+    elsif File.exist?(VCR::Cassette.new(cassette_name).file)
+      VCR.use_cassette(cassette_name, record: :none) { example.run }
     else
-      skip "Real API key required for VCR tests"
+      skip "Real API key required (bin/check_api)"
     end
   end
 
@@ -259,23 +265,4 @@ RSpec.configure do |config|
       description.gsub(/\W+/, "_").downcase
     end
   end)
-
-  # Nettoyage automatique des cassettes VCR après les tests
-  config.after(:suite) do
-    if ENV["CLEAN_VCR_CASSETTES"] != "false"
-      puts "\n🧹 Cleaning VCR cassettes..."
-      cassette_dir = "spec/fixtures/vcr_cassettes"
-      if Dir.exist?(cassette_dir)
-        cassette_count = Dir.glob("#{cassette_dir}/*.yml").count
-        if cassette_count > 0
-          Dir.glob("#{cassette_dir}/*.yml").each do |file|
-            FileUtils.rm_f(file)
-          end
-          puts "   #{cassette_count} VCR cassettes cleaned"
-        else
-          puts "   No VCR cassettes to clean"
-        end
-      end
-    end
-  end
 end

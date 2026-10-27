@@ -3,31 +3,15 @@
 # require "spec_helper"
 
 RSpec.describe "Mistral API Integration", :vcr do
+  # The key is checked once by bin/check_api, not before each example.
   before do
-    # Utiliser votre helper existant pour vérifier la disponibilité de l'API
-    unless ApiKeyHelper.real_api_available?
-      puts "\n⚠️  Skipping integration tests - no real API key found"
-      puts "   Set MISTRAL_TEST_API_KEY or MISTRAL_API_KEY environment variable to run real API tests"
-      puts "   Example: export MISTRAL_TEST_API_KEY=your_api_key_here"
-      skip "Real API key required for integration tests"
-    end
-
-    # Setup initial avec votre helper
-    VCRHelper.setup_real_api_tests?
     MistralTranslator.reset_configuration!
     ApiKeyHelper.setup_test_configuration!
 
-    # Ajuster la configuration pour les tests d'intégration
     MistralTranslator.configure do |config|
       config.enable_metrics = true
-      config.retry_delays = [1, 2] # Un peu plus lent que les tests unitaires
-    end
-
-    # Validation rapide de la clé API
-    health = MistralTranslator.health_check
-    if health[:status] != :ok
-      puts "\n❌ API connection failed: #{health[:message]}"
-      skip "API connection failed: #{health[:message]}"
+      # Generous delays while recording, to ride out the API rate limit.
+      config.retry_delays = ApiKeyHelper.real_api_available? ? [2, 4, 8, 16] : [0.1]
     end
   end
 
@@ -451,13 +435,15 @@ end
 
 # Tests spécifiques pour les cas de production
 RSpec.describe "Production Scenarios", :vcr do
+  # Same setup as above: the key comes from ApiKeyHelper, so these examples run
+  # with bin/check_api like the others.
   before do
-    skip "MISTRAL_API_KEY environment variable required for production scenario tests" unless ENV["MISTRAL_API_KEY"]
     MistralTranslator.reset_configuration!
+    ApiKeyHelper.setup_test_configuration!
+
     MistralTranslator.configure do |config|
-      config.api_key = ENV.fetch("MISTRAL_API_KEY")
       config.enable_metrics = true
-      config.retry_delays = [1, 2, 4] # Configuration production-like
+      config.retry_delays = ApiKeyHelper.real_api_available? ? [2, 4, 8, 16] : [0.1]
     end
   end
 
