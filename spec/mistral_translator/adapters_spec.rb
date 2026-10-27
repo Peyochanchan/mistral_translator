@@ -443,7 +443,8 @@ RSpec.describe MistralTranslator::Adapters do
         allow(mock_adapter).to receive_messages(
           detect_source_locale: :fr,
           get_translatable_content: "Content français",
-          available_locales: %i[fr en es]
+          available_locales: %i[fr en es],
+          rich_text_field?: false
         )
         allow(mock_adapter).to receive(:set_field_value)
       end
@@ -540,6 +541,51 @@ RSpec.describe MistralTranslator::Adapters do
 
         result = service.translate_to_all_locales
         expect(result).to be false
+      end
+
+      it "preserves HTML for rich text fields only" do
+        allow(service).to receive(:sleep)
+        allow(mock_adapter).to receive(:rich_text_field?) { |field, _locale| field == "description" }
+
+        service.translate_to_all_locales
+
+        expect(MistralTranslator).to have_received(:translate)
+          .with("Content français", from: "fr", to: "en", preserve_html: true).once
+        expect(MistralTranslator).to have_received(:translate)
+          .with("Content français", from: "fr", to: "en").once
+      end
+
+      it "saves the other translations and returns false when one fails" do
+        allow(service).to receive(:sleep)
+        allow(MistralTranslator).to receive(:translate) do |_text, to:, **|
+          raise MistralTranslator::ApiError, "Server error" if to == "es"
+
+          "Translated"
+        end
+
+        expect(service.translate_to_all_locales).to be false
+        expect(mock_adapter).to have_received(:set_field_value).with("name", :en, "Translated")
+        expect(mock_adapter).to have_received(:save_record!)
+      end
+
+      it "gives up after a few rate limit retries" do
+        allow(service).to receive(:sleep)
+        allow(mock_adapter).to receive(:get_translatable_content).with("description", :fr).and_return("")
+        allow(mock_adapter).to receive(:available_locales).and_return(%i[fr en])
+        allow(MistralTranslator).to receive(:translate).and_raise(MistralTranslator::RateLimitError, "Rate limited")
+
+        expect(service.translate_to_all_locales).to be false
+        expect(MistralTranslator).to have_received(:translate)
+          .exactly(MistralTranslator::Adapters::RecordTranslationService::MAX_RATE_LIMIT_RETRIES + 1).times
+      end
+
+      it "does not pause after a failed translation" do
+        allow(service).to receive(:sleep)
+        allow(MistralTranslator).to receive(:translate).and_raise(MistralTranslator::ApiError, "Server error")
+
+        service.translate_to_all_locales
+
+        expect(service).not_to have_received(:sleep)
       end
     end
   end

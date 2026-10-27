@@ -60,6 +60,10 @@ module MistralTranslator
           (defined?(ActionText::Content) && value.is_a?(ActionText::Content))
       end
 
+      def rich_text_field?(field, locale)
+        rich_text?(get_field_value(field, locale))
+      end
+
       private
 
       # HTML tel que stocké, pièces jointes réduites à <action-text-attachment>.
@@ -174,6 +178,8 @@ module MistralTranslator
   # Service de traduction utilisant les adaptateurs
   module Adapters
     class RecordTranslationService
+      MAX_RATE_LIMIT_RETRIES = 3
+
       def initialize(record, translatable_fields, adapter: nil, source_locale: nil)
         @record = record
         @translatable_fields = Array(translatable_fields)
@@ -181,9 +187,11 @@ module MistralTranslator
         @source_locale = source_locale
       end
 
+      # Enregistre les traductions obtenues ; renvoie false si l'une a échoué.
       def translate_to_all_locales
         return false if @translatable_fields.empty?
 
+        @failed = false
         ActiveRecord::Base.transaction do
           @translatable_fields.each do |field|
             translate_field(field)
@@ -191,7 +199,7 @@ module MistralTranslator
           @adapter.save_record!
         end
 
-        true
+        !@failed
       rescue StandardError => e
         Rails.logger.error "Translation failed: #{e.message}" if defined?(Rails)
         false
@@ -205,33 +213,55 @@ module MistralTranslator
 
         return if source_content.nil? || source_content.strip.empty?
 
+        options = rich_text_field?(field, source_locale) ? { preserve_html: true } : {}
         target_locales = @adapter.available_locales - [source_locale]
 
         target_locales.each do |target_locale|
-          translate_to_locale(field, source_content, source_locale, target_locale)
-          sleep(2) # Rate limiting basique
+          translated = translate_to_locale(field, source_content, source_locale, target_locale, options)
+          sleep(2) if translated # Rate limiting basique
         end
       end
 
-      def translate_to_locale(field, content, source_locale, target_locale)
-        translated_content = MistralTranslator.translate(
-          content,
-          from: source_locale.to_s,
-          to: target_locale.to_s
-        )
+      # Les adaptateurs fournis par l'application n'héritent pas forcément de BaseAdapter.
+      def rich_text_field?(field, locale)
+        @adapter.respond_to?(:rich_text_field?) && @adapter.rich_text_field?(field, locale)
+      end
 
-        if translated_content && !translated_content.strip.empty?
-          @adapter.set_field_value(field, target_locale,
-                                   translated_content)
+      def translate_to_locale(field, content, source_locale, target_locale, options)
+        rate_limit_retries = 0
+        begin
+          translated_content = MistralTranslator.translate(
+            content,
+            from: source_locale.to_s,
+            to: target_locale.to_s,
+            **options
+          )
+
+          if translated_content && !translated_content.strip.empty?
+            @adapter.set_field_value(field, target_locale,
+                                     translated_content)
+          end
+          true
+        rescue MistralTranslator::RateLimitError => e
+          Rails.logger.warn "Rate limit: #{e.message}" if defined?(Rails)
+          rate_limit_retries += 1
+          if rate_limit_retries <= MAX_RATE_LIMIT_RETRIES
+            sleep(2)
+            retry
+          end
+          record_failure(field, source_locale, target_locale, e)
+          false
+        rescue StandardError => e
+          record_failure(field, source_locale, target_locale, e)
+          false
         end
-      rescue MistralTranslator::RateLimitError => e
-        Rails.logger.warn "Rate limit: #{e.message}" if defined?(Rails)
-        sleep(2)
-        retry
-      rescue StandardError => e
-        if defined?(Rails)
-          Rails.logger.error "Translation error for #{field} #{source_locale}->#{target_locale}: #{e.message}"
-        end
+      end
+
+      def record_failure(field, source_locale, target_locale, error)
+        @failed = true
+        return unless defined?(Rails)
+
+        Rails.logger.error "Translation error for #{field} #{source_locale}->#{target_locale}: #{error.message}"
       end
     end
   end
