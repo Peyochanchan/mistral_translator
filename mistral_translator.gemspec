@@ -5,7 +5,7 @@ require_relative "lib/mistral_translator/version"
 Gem::Specification.new do |spec|
   spec.name = "mistral_translator"
   spec.version = MistralTranslator::VERSION
-  spec.authors = ["Peyochanchan"]
+  spec.authors = ["Pierre Cherbero"]
   spec.email = ["cameleon24@outlook.fr"]
 
   spec.summary = "Gem to translate and summarize text with Mistral API"

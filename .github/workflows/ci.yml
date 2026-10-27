@@ -4,23 +4,40 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Lint code for consistent style
+        run: bundle exec rubocop
+
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        ruby: ['3.2', '3.3', '3.4']
-    
+        ruby: ["3.2", "3.3", "3.4", "4.0"]
+
+    name: test (ruby ${{ matrix.ruby }})
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Ruby ${{ matrix.ruby }}
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      
+
+      # The examples against the real API run in the weekly workflow.
       - name: Run tests
         run: bundle exec rspec

@@ -2,11 +2,11 @@
 
 Ruby gem for AI-powered translation and text summarization using Mistral AI API, with advanced Rails support.
 
-[![Ruby](https://img.shields.io/badge/ruby-%23CC342D.svg?style=flat&logo=ruby&logoColor=white)](https://www.ruby-lang.org/)
-[![Gem Version](https://img.shields.io/badge/gem%20version-0.3.0-blue.svg)](https://rubygems.org/gems/mistral_translator)
-[![RSpec](https://img.shields.io/badge/tested%20with-RSpec-red.svg)](https://rspec.info/)
-[![RuboCop](https://img.shields.io/badge/code%20style-RuboCop-brightgreen.svg)](https://rubocop.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Gem Version](https://img.shields.io/gem/v/mistral_translator)](https://rubygems.org/gems/mistral_translator)
+[![Downloads](https://img.shields.io/gem/dt/mistral_translator)](https://rubygems.org/gems/mistral_translator)
+[![CI](https://github.com/Peyochanchan/mistral_translator/actions/workflows/ci.yml/badge.svg)](https://github.com/Peyochanchan/mistral_translator/actions/workflows/ci.yml)
+[![Weekly API check](https://github.com/Peyochanchan/mistral_translator/actions/workflows/weekly-api-check.yml/badge.svg)](https://github.com/Peyochanchan/mistral_translator/actions/workflows/weekly-api-check.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
 
 ## Quick Start
 
@@ -233,7 +233,7 @@ The complete documentation includes:
 ## Requirements
 
 - Ruby 3.2+
-- Mistral AI API key
+- Mistral AI API key, on a plan with API access (Mistral's free plan cannot generate text)
 - Rails 6.0+ (optional, for Rails integration features)
 
 ## Testing
@@ -247,6 +247,10 @@ bundle exec rspec spec/mistral_translator/
 
 # Run all tests with documentation format
 bundle exec rspec --format documentation
+
+# Check the API key and default model, then run the examples against the real
+# API (reads MISTRAL_TEST_API_KEY, .env or asks for the key, never prints it)
+bin/check_api
 ```
 
 ### Integration Tests
