@@ -458,14 +458,17 @@ RSpec.describe MistralTranslator::Helpers do
     describe "#translate_with_mistral" do
       it "creates adapter and service to translate" do
         mock_adapter = instance_double(MistralTranslator::Adapters::BaseAdapter)
-        mock_service = instance_double(MistralTranslator::Adapters::RecordTranslationService)
 
         expect(MistralTranslator::Adapters::AdapterFactory)
           .to receive(:build_for).with(mock_record).and_return(mock_adapter)
+        # Le vrai constructeur est appelé : des arguments qu'il n'accepte pas lèveraient une erreur.
         expect(MistralTranslator::Adapters::RecordTranslationService).to receive(:new)
-          .with(mock_record, ["name"], adapter: mock_adapter, from: "fr", to: "en")
-          .and_return(mock_service)
-        expect(mock_service).to receive(:translate_to_all_locales).and_return(true)
+          .with(mock_record, ["name"], adapter: mock_adapter, source_locale: "fr", target_locales: ["en"])
+          .and_wrap_original do |original, *args, **kwargs|
+            original.call(*args, **kwargs).tap do |service|
+              allow(service).to receive(:translate_to_all_locales).and_return(true)
+            end
+          end
 
         result = mock_record.translate_with_mistral(["name"], from: "fr", to: "en")
         expect(result).to be true

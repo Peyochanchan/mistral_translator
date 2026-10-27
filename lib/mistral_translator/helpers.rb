@@ -258,10 +258,11 @@ module MistralTranslator
 
     # Module pour inclure dans les classes Rails si souhaité
     module RecordHelpers
-      def translate_with_mistral(fields, from:, to:, **)
+      def translate_with_mistral(fields, from:, to:)
         adapter = MistralTranslator::Adapters::AdapterFactory.build_for(self)
-        service = MistralTranslator::Adapters::RecordTranslationService.new(self, fields, adapter: adapter, from: from,
-                                                                                          to: to, **)
+        service = MistralTranslator::Adapters::RecordTranslationService.new(
+          self, fields, adapter: adapter, source_locale: from, target_locales: Array(to)
+        )
         service.translate_to_all_locales
       end
 

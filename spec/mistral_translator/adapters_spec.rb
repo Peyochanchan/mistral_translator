@@ -579,6 +579,18 @@ RSpec.describe MistralTranslator::Adapters do
           .exactly(MistralTranslator::Adapters::RecordTranslationService::MAX_RATE_LIMIT_RETRIES + 1).times
       end
 
+      it "translates only to the requested target locales" do
+        limited = MistralTranslator::Adapters::RecordTranslationService.new(
+          mock_record, ["name"], source_locale: "fr", target_locales: ["es"]
+        )
+        allow(limited).to receive(:sleep)
+
+        limited.translate_to_all_locales
+
+        expect(MistralTranslator).to have_received(:translate).once
+        expect(MistralTranslator).to have_received(:translate).with("Content français", from: "fr", to: "es")
+      end
+
       it "does not pause after a failed translation" do
         allow(service).to receive(:sleep)
         allow(MistralTranslator).to receive(:translate).and_raise(MistralTranslator::ApiError, "Server error")

@@ -180,11 +180,13 @@ module MistralTranslator
     class RecordTranslationService
       MAX_RATE_LIMIT_RETRIES = 3
 
-      def initialize(record, translatable_fields, adapter: nil, source_locale: nil)
+      # target_locales : toutes les locales de l'adaptateur par défaut
+      def initialize(record, translatable_fields, adapter: nil, source_locale: nil, target_locales: nil)
         @record = record
         @translatable_fields = Array(translatable_fields)
         @adapter = adapter || Adapters::AdapterFactory.build_for(record)
         @source_locale = source_locale
+        @target_locales = target_locales&.map(&:to_sym)
       end
 
       # Enregistre les traductions obtenues ; renvoie false si l'une a échoué.
@@ -215,6 +217,7 @@ module MistralTranslator
 
         options = rich_text_field?(field, source_locale) ? { preserve_html: true } : {}
         target_locales = @adapter.available_locales - [source_locale]
+        target_locales &= @target_locales if @target_locales
 
         target_locales.each do |target_locale|
           translated = translate_to_locale(field, source_content, source_locale, target_locale, options)
