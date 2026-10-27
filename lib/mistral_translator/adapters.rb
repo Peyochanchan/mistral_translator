@@ -43,24 +43,31 @@ module MistralTranslator
         value = get_field_value(field, locale)
         return false if value.nil?
 
-        # Gestion des rich text
-        if defined?(ActionText::RichText) && value.is_a?(ActionText::RichText)
-          !value.to_plain_text.to_s.strip.empty?
-        else
-          !value.to_s.strip.empty?
-        end
+        text = rich_text?(value) ? value.to_plain_text : value
+        !text.to_s.strip.empty?
       end
 
       def get_translatable_content(field, locale)
         value = get_field_value(field, locale)
         return nil if value.nil?
 
-        # Gestion des rich text - préserver le HTML
-        if defined?(ActionText::RichText) && value.is_a?(ActionText::RichText)
-          value.body.to_s
-        else
-          value.to_s
-        end
+        rich_text?(value) ? rich_text_html(value) : value.to_s
+      end
+
+      # ActionText::RichText (has_rich_text) ou ActionText::Content (son body)
+      def rich_text?(value)
+        (defined?(ActionText::RichText) && value.is_a?(ActionText::RichText)) ||
+          (defined?(ActionText::Content) && value.is_a?(ActionText::Content))
+      end
+
+      private
+
+      # HTML tel que stocké, pièces jointes réduites à <action-text-attachment>.
+      # to_s rendrait le layout (<div class="trix-content">) et le contenu des
+      # pièces jointes, qui seraient alors enregistrés dans la traduction.
+      def rich_text_html(value)
+        content = value.respond_to?(:body) ? value.body : value
+        content&.to_html.to_s
       end
     end
 

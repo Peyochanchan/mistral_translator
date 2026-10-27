@@ -102,6 +102,12 @@ RSpec.describe MistralTranslator::Adapters do
           allow(adapter).to receive(:get_field_value).and_return(mock_rich_text)
           expect(adapter.content?("description", :fr)).to be false
         end
+
+        it "checks the plain text of an ActionText::Content" do
+          stub_const("ActionText::Content", Class.new { def to_plain_text = " " })
+          allow(adapter).to receive(:get_field_value).and_return(ActionText::Content.new)
+          expect(adapter.content?("description", :fr)).to be false
+        end
       end
     end
 
@@ -117,19 +123,36 @@ RSpec.describe MistralTranslator::Adapters do
       end
 
       context "with ActionText" do
-        let(:mock_rich_text) do
-          body = double("body", to_s: "<p>HTML content</p>")
-          double("ActionText::RichText", body: body)
+        let(:stored_html) { '<p>Hi</p><action-text-attachment sgid="abc"></action-text-attachment>' }
+        let(:body) do
+          instance_double(ActionText::Content, to_html: stored_html,
+                                               to_s: %(<div class="trix-content"><p>Hi</p><figure>…</figure></div>))
         end
+        let(:rich_text) { ActionText::RichText.new(body) }
 
         before do
-          stub_const("ActionText::RichText", Class.new)
-          allow(mock_rich_text).to receive(:is_a?).with(ActionText::RichText).and_return(true)
+          stub_const("ActionText::Content", Class.new do
+            def to_html = ""
+            def to_s = ""
+          end)
+          stub_const("ActionText::RichText", Struct.new(:body))
         end
 
-        it "returns HTML body for rich text" do
-          allow(adapter).to receive(:get_field_value).and_return(mock_rich_text)
-          expect(adapter.get_translatable_content("description", :fr)).to eq("<p>HTML content</p>")
+        it "returns the stored HTML of a rich text, not its rendered layout" do
+          allow(adapter).to receive(:get_field_value).and_return(rich_text)
+          expect(adapter.get_translatable_content("description", :fr)).to eq(stored_html)
+        end
+
+        it "returns the stored HTML of an ActionText::Content" do
+          content = ActionText::Content.new
+          allow(content).to receive(:to_html).and_return(stored_html)
+          allow(adapter).to receive(:get_field_value).and_return(content)
+          expect(adapter.get_translatable_content("description", :fr)).to eq(stored_html)
+        end
+
+        it "returns an empty string for a rich text without body" do
+          allow(adapter).to receive(:get_field_value).and_return(ActionText::RichText.new(nil))
+          expect(adapter.get_translatable_content("description", :fr)).to eq("")
         end
       end
     end
