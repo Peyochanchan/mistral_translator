@@ -100,6 +100,27 @@ RSpec.describe MistralTranslator::Security::BasicRateLimiter do
       rate_limiter.wait_and_record!
     end
 
+    it "sleeps without holding the lock" do
+      3.times { rate_limiter.wait_and_record! }
+      mutex = rate_limiter.instance_variable_get(:@mutex)
+      allow(rate_limiter).to receive(:sleep) { expect(mutex).not_to be_locked }
+
+      rate_limiter.wait_and_record!
+
+      expect(rate_limiter).to have_received(:sleep)
+    end
+
+    it "gives each waiting request its own slot" do
+      limiter = described_class.new(max_requests: 2, window_seconds: 60)
+      allow(limiter).to receive(:sleep)
+
+      4.times { limiter.wait_and_record! }
+
+      first, second, third, fourth = limiter.instance_variable_get(:@requests)
+      expect(third).to be >= first + 60
+      expect(fourth).to be >= second + 60
+    end
+
     it "is thread-safe" do
       # Créer un rate limiter avec une limite plus élevée pour éviter les attentes
       large_limiter = described_class.new(max_requests: 10, window_seconds: 60)
