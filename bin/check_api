@@ -49,7 +49,7 @@ if [ "$status" != "200" ]; then
   exit 1
 fi
 
-model=$(ruby -Ilib -e 'require "mistral_translator"; puts MistralTranslator::Configuration.new.model')
+model=$(bundle exec ruby -Ilib -e 'require "mistral_translator"; puts MistralTranslator::Configuration.new.model')
 status=$(mistral_status "https://api.mistral.ai/v1/models/${model}")
 if [ "$status" != "200" ]; then
   echo "The default model \"${model}\" is not available (HTTP ${status}): change it in configuration.rb."
