@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 module MistralTranslator
-  VERSION = "0.3.0"
+  VERSION = "0.3.1"
 
   # Informations additionnelles sur la gem
   API_VERSION = "v1"
-  SUPPORTED_MODEL = "mistral-small"
+  SUPPORTED_MODEL = "mistral-small-latest"
 
   # Méthode pour obtenir des informations complètes sur la version
   def self.version_info

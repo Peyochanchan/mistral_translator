@@ -76,7 +76,7 @@ end
 ```ruby
 MistralTranslator.configure do |config|
   config.api_key = ENV['MISTRAL_API_KEY']
-  config.model = "mistral-small"                # Modèle par défaut
+  config.model = "mistral-small-latest"                # Modèle par défaut
   config.retry_delays = [2, 4, 8, 16]          # Délais retry
   config.enable_metrics = true                  # Suivi des stats
   config.default_max_tokens = 4000              # Limite tokens

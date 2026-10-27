@@ -1,0 +1,58 @@
+name: Weekly API check
+
+# Unit tests mock the API. Every Monday, this job checks the gem against the
+# real Mistral API (bin/check_api): the key is accepted and the default model
+# is still served, since Mistral retires model names. If the plan allows
+# generation, the VCR examples run against the API too. On failure, it opens
+# an issue.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  real-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      # Without the secret, every example would be skipped and the job would
+      # pass while checking nothing.
+      - name: Require the API key
+        env:
+          MISTRAL_TEST_API_KEY: ${{ secrets.MISTRAL_TEST_API_KEY }}
+        run: |
+          if [ -z "$MISTRAL_TEST_API_KEY" ]; then
+            echo "::error::The MISTRAL_TEST_API_KEY secret is not set."
+            exit 1
+          fi
+
+      - name: Check the gem against the real API
+        env:
+          MISTRAL_TEST_API_KEY: ${{ secrets.MISTRAL_TEST_API_KEY }}
+        run: bin/check_api
+
+      - name: Open or update an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Weekly API check failed"
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "Failed again: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "The check against the real Mistral API failed: $RUN_URL"
+          fi

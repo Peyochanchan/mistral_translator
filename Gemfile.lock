@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    mistral_translator (0.3.0)
+    mistral_translator (0.3.1)
       net-http (~> 0.4)
       net-http-persistent (~> 4.0)
 
@@ -11,7 +11,6 @@ GEM
     addressable (2.8.7)
       public_suffix (>= 2.0.2, < 7.0)
     ast (2.4.3)
-    base64 (0.3.0)
     bigdecimal (3.2.2)
     connection_pool (2.5.5)
     crack (1.0.0)
@@ -71,12 +70,11 @@ GEM
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
     ruby-progressbar (1.13.0)
-    unicode-display_width (3.1.5)
-      unicode-emoji (~> 4.0, >= 4.0.4)
-    unicode-emoji (4.0.4)
+    unicode-display_width (3.3.0)
+      unicode-emoji (~> 4.3)
+    unicode-emoji (4.3.0)
     uri (1.0.3)
-    vcr (6.3.1)
-      base64
+    vcr (6.4.0)
     webmock (3.25.1)
       addressable (>= 2.8.0)
       crack (>= 0.3.2)

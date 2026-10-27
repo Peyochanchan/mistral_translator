@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-27
+
+### Fixed
+
+- Default model is now `mistral-small-latest`. Mistral retired the `mistral-small` name, so every call without an explicit `config.model` failed with a 404. The alias follows the current Mistral Small version; set `config.model` to pin one.
+
+### Added
+
+- `bin/check_api`: checks the API key and the default model, then runs the examples against the real API when the plan allows generation. The key is read from `MISTRAL_TEST_API_KEY`, `.env`, or a hidden prompt, and never printed.
+- Weekly workflow running `bin/check_api`, which opens an issue on failure.
+
+### Changed
+
+- CI: a single workflow, RuboCop plus the test suite on Ruby 3.2, 3.3, 3.4 and 4.0.
+- The test suite no longer prints part of the API key, and no longer deletes VCR cassettes after each run.
+
 ## [0.3.0] - 2025-12-09
 
 ### Added

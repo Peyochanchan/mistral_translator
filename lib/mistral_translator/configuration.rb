@@ -11,7 +11,7 @@ module MistralTranslator
     def initialize
       @api_key = nil
       @api_url = "https://api.mistral.ai"
-      @model = "mistral-small"
+      @model = "mistral-small-latest"
       @default_max_tokens = nil
       @default_temperature = nil
       @retry_delays = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
@@ -110,7 +110,8 @@ module MistralTranslator
       @metrics_mutex.synchronize do
         @metrics.merge({
                          average_translation_time: if @metrics[:total_translations].positive?
-                                                     (@metrics[:total_duration] / @metrics[:total_translations]).round(3)
+                                                     (@metrics[:total_duration] /
+                                                       @metrics[:total_translations]).round(3)
                                                    else
                                                      0
                                                    end,

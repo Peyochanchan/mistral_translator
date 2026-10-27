@@ -7,7 +7,7 @@ RSpec.describe MistralTranslator::Configuration do
     it "sets default API values" do
       expect(config.api_key).to be_nil
       expect(config.api_url).to eq("https://api.mistral.ai")
-      expect(config.model).to eq("mistral-small")
+      expect(config.model).to eq("mistral-small-latest")
       expect(config.default_max_tokens).to be_nil
       expect(config.default_temperature).to be_nil
     end
@@ -279,7 +279,7 @@ RSpec.describe MistralTranslator::Configuration do
     before { config.enable_metrics = true }
 
     it "handles concurrent metric updates safely" do
-      threads = 10.times.map do |i|
+      threads = 10.times.map do |_i|
         Thread.new do
           10.times do
             config.trigger_translation_start("en", "fr", 100)
@@ -426,7 +426,7 @@ RSpec.describe MistralTranslator do
 
       config = described_class.configuration
       expect(config.api_key).to be_nil
-      expect(config.model).to eq("mistral-small")
+      expect(config.model).to eq("mistral-small-latest")
       expect(config.api_url).to eq("https://api.mistral.ai")
       expect(config.enable_metrics).to be false
     end
