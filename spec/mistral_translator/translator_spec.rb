@@ -121,7 +121,7 @@ RSpec.describe MistralTranslator::Translator do
         )
       end
 
-      it "retries indefinitely on RateLimitError" do
+      it "retries on RateLimitError" do
         call_count = 0
         allow(mock_client).to receive(:complete) do
           call_count += 1
@@ -133,6 +133,18 @@ RSpec.describe MistralTranslator::Translator do
         result = translator.translate("Hello", from: "en", to: "fr")
         expect(result).to eq("Bonjour")
         expect(call_count).to eq(3)
+      end
+
+      it "gives up after a few RateLimitError retries" do
+        allow(translator).to receive(:sleep)
+        call_count = 0
+        allow(mock_client).to receive(:complete) do
+          call_count += 1
+          raise MistralTranslator::RateLimitError
+        end
+
+        expect { translator.translate("Hello", from: "en", to: "fr") }.to raise_error(MistralTranslator::RateLimitError)
+        expect(call_count).to eq(4)
       end
     end
   end

@@ -146,10 +146,13 @@ module MistralTranslator
         log_debug("Max retries reached for #{target_locale}, giving up")
         raise e
       end
-    rescue RateLimitError => e
+    rescue RateLimitError
+      # Le client a déjà relancé avec backoff : quelques tentatives de plus suffisent.
+      raise if attempt >= DEFAULT_RETRY_COUNT
+
       log_rate_limit_hit("summary", target_locale)
       sleep(DEFAULT_RETRY_DELAY)
-      retry
+      summarize_with_retry(text, target_locale, max_words, attempt + 1)
     end
     # rubocop:enable Metrics/PerceivedComplexity
 

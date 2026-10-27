@@ -184,9 +184,12 @@ module MistralTranslator
         translate_with_retry(text, source_locale, target_locale, attempt + 1, **options)
       end
     rescue RateLimitError
+      # Le client a déjà relancé avec backoff : quelques tentatives de plus suffisent.
+      raise if attempt >= DEFAULT_RETRY_COUNT
+
       log_rate_limit_hit(source_locale, target_locale)
       sleep(DEFAULT_RETRY_DELAY)
-      retry
+      translate_with_retry(text, source_locale, target_locale, attempt + 1, **options)
     end
 
     # Ces méthodes sont héritées via RequestHelper
