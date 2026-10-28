@@ -333,8 +333,8 @@ RSpec.describe MistralTranslator::Summarizer do
       it "builds correct prompt for summary and translation" do
         prompt = summarizer.send(:build_summary_translation_prompt, "Sample text", "fr", "en", 100)
 
-        expect(prompt.system).to include("français")
-        expect(prompt.system).to include("english")
+        expect(prompt.system).to include("français (fr)")
+        expect(prompt.system).to include("anglais (en)")
         expect(prompt.system).to include("100 mots")
         expect(prompt.system).to include("summarize_and_translate")
         expect(prompt.system).not_to include("Sample text")

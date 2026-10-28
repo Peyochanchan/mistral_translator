@@ -51,7 +51,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
       locales = described_class.supported_locales
       expect(locales).to be_an(Array)
       expect(locales).to include("fr", "en", "es", "de", "it")
-      expect(locales.length).to eq(13)
+      expect(locales.length).to eq(described_class::LANGUAGES.size)
     end
   end
 
@@ -60,7 +60,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
       languages = described_class.supported_languages
       expect(languages).to be_an(Array)
       expect(languages).to include("français", "english", "español")
-      expect(languages.length).to eq(13)
+      expect(languages.length).to eq(described_class::LANGUAGES.size)
     end
   end
 
@@ -134,6 +134,42 @@ RSpec.describe MistralTranslator::LocaleHelper do
         language = described_class.locale_to_language(locale)
         expect(list).to include("#{locale} (#{language})")
       end
+    end
+  end
+
+  describe ".prompt_language_name" do
+    it "gives the French name followed by the code" do
+      expect(described_class.prompt_language_name("en")).to eq("anglais (en)")
+      expect(described_class.prompt_language_name("ja-JP")).to eq("japonais (ja)")
+    end
+
+    it "falls back to the code for an unknown locale" do
+      expect(described_class.prompt_language_name("xx")).to eq("xx")
+    end
+  end
+
+  describe "language data" do
+    it "covers every ISO 639-1 language CLDR names" do
+      expect(described_class.supported_locales.size).to be >= 180
+      expect(described_class.supported_locales).to include("br", "wo", "ln", "eu", "oc")
+    end
+
+    it "keeps the native names of the original languages" do
+      expect(described_class::SUPPORTED_LANGUAGES.slice("fr", "en", "de", "mg", "ja")).to eq(
+        "fr" => "français", "en" => "english", "de" => "deutsch", "mg" => "malagasy", "ja" => "日本語"
+      )
+    end
+
+    it "has a French and an English name for every language" do
+      described_class::LANGUAGES.each do |code, names|
+        expect(names.values_at("fr", "en", "native")).to all(be_a(String).and(satisfy { |name| !name.empty? })),
+                                                         "missing name for #{code}"
+      end
+    end
+
+    it "accepts English names as aliases" do
+      expect(described_class.language_to_locale("Breton")).to eq("br")
+      expect(described_class.language_to_locale("brezhoneg")).to eq("br")
     end
   end
 end

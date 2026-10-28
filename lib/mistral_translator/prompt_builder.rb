@@ -19,8 +19,8 @@ module MistralTranslator
 
     class << self
       def translation_prompt(text, source_language, target_language, **options)
-        source_name = LocaleHelper.locale_to_language(source_language)
-        target_name = LocaleHelper.locale_to_language(target_language)
+        source_name = LocaleHelper.prompt_language_name(source_language)
+        target_name = LocaleHelper.prompt_language_name(target_language)
 
         # Construction du contexte enrichi
         context_section = build_context_section(options[:context], options[:glossary])
@@ -57,8 +57,8 @@ module MistralTranslator
 
       # rubocop:disable Metrics/MethodLength
       def bulk_translation_prompt(texts, source_language, target_language, **options)
-        source_name = LocaleHelper.locale_to_language(source_language)
-        target_name = LocaleHelper.locale_to_language(target_language)
+        source_name = LocaleHelper.prompt_language_name(source_language)
+        target_name = LocaleHelper.prompt_language_name(target_language)
 
         context_section = build_context_section(options[:context], options[:glossary])
         html_instruction = options[:preserve_html] ? build_html_preservation_instruction : ""
@@ -104,7 +104,7 @@ module MistralTranslator
       # rubocop:enable Metrics/MethodLength
 
       def summary_prompt(text, max_words, target_language = "fr", context: nil, style: nil)
-        target_name = LocaleHelper.locale_to_language(target_language)
+        target_name = LocaleHelper.prompt_language_name(target_language)
 
         context_section = build_summary_context_section(context, style)
         style_instruction = build_style_instruction(style)
@@ -136,8 +136,8 @@ module MistralTranslator
       end
 
       def summary_and_translation_prompt(text, source_language, target_language, max_words, **options)
-        source_name = LocaleHelper.locale_to_language(source_language)
-        target_name = LocaleHelper.locale_to_language(target_language)
+        source_name = LocaleHelper.prompt_language_name(source_language)
+        target_name = LocaleHelper.prompt_language_name(target_language)
 
         context_section = build_summary_context_section(options[:context], options[:style])
         style_instruction = build_style_instruction(options[:style])
@@ -173,7 +173,7 @@ module MistralTranslator
       end
 
       def tiered_summary_prompt(text, target_language, **options)
-        target_name = LocaleHelper.locale_to_language(target_language)
+        target_name = LocaleHelper.prompt_language_name(target_language)
 
         context_section = build_summary_context_section(options[:context], options[:style])
         style_instruction = build_style_instruction(options[:style])
