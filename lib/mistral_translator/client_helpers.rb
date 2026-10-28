@@ -22,6 +22,9 @@ module MistralTranslator
         raise ApiError, "Request timeout: #{e.message}"
       rescue Net::HTTPError => e
         raise ApiError, "HTTP error: #{e.message}"
+      rescue Net::HTTP::Persistent::Error => e
+        # Proxy ou API injoignable ; le message d'origine peut citer l'adresse du proxy
+        raise ApiError, "Connection failed (#{e.class})", cause: nil
       end
 
       def http_pool

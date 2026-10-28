@@ -544,6 +544,16 @@ RSpec.describe MistralTranslator::Client do
         expect(pool1).to be(pool2)
       end
 
+      it "wraps an unreachable proxy or API in ApiError" do
+        allow(client.send(:http_pool)).to receive(:request)
+          .and_raise(Net::HTTP::Persistent::Error, "connection refused: user:secret@proxy:3128")
+
+        expect { client.chat("Hello") }.to raise_error(MistralTranslator::ApiError) { |error|
+          expect(error.message).not_to include("secret")
+          expect(error.cause).to be_nil
+        }
+      end
+
       it "uses no proxy by default" do
         expect(client.send(:http_pool).proxy_uri).to be_nil
       end
