@@ -208,6 +208,21 @@ RSpec.describe MistralTranslator::Helpers do
       described_class.smart_summarize(short_text, max_words: 100, target_language: "fr")
     end
 
+    it "reaches the summarizer with its style and context" do
+      allow(MistralTranslator).to receive(:summarize).and_call_original
+      summarizer = instance_double(MistralTranslator::Summarizer)
+      allow(MistralTranslator::Summarizer).to receive(:new).and_return(summarizer)
+      MistralTranslator.reset_configuration!
+      MistralTranslator.configure { |c| c.api_key = "test_api_key" }
+
+      expect(summarizer).to receive(:summarize)
+        .with("Texte", language: "fr", max_words: anything, style: "formal", context: "blog")
+        .and_return("Résumé")
+
+      result = described_class.smart_summarize("Texte", style: "formal", context: "blog")
+      expect(result[:summary]).to eq("Résumé")
+    end
+
     it "strips HTML for analysis" do
       html_text = "<div><p>Content with <strong>tags</strong></p></div>"
 

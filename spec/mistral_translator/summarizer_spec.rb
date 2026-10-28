@@ -51,7 +51,7 @@ RSpec.describe MistralTranslator::Summarizer do
     it "uses default parameters correctly" do
       # Mock PromptBuilder pour vérifier les paramètres
       allow(MistralTranslator::PromptBuilder).to receive(:summary_prompt)
-        .with(anything, 250, "fr")
+        .with(anything, 250, "fr", context: nil, style: nil)
         .and_return("mocked prompt")
 
       allow(mock_client).to receive(:complete).with("mocked prompt").and_return(summary_response)
@@ -75,7 +75,7 @@ RSpec.describe MistralTranslator::Summarizer do
       expected_cleaned = "Text with multiple\nspaces\nand newlines"
 
       expect(MistralTranslator::PromptBuilder).to receive(:summary_prompt)
-        .with(expected_cleaned, 250, "fr")
+        .with(expected_cleaned, 250, "fr", context: nil, style: nil)
         .and_return("prompt")
 
       summarizer.summarize(messy_text, language: "fr")
@@ -178,11 +178,34 @@ RSpec.describe MistralTranslator::Summarizer do
 
     it "delegates to simple summarize when same language" do
       expect(summarizer).to receive(:summarize)
-        .with(anything, language: "fr", max_words: 100)
+        .with(anything, language: "fr", max_words: 100, context: nil, style: nil)
         .and_return("Summary in same language")
 
       result = summarizer.summarize_and_translate(long_text, from: "fr", to: "fr", max_words: 100)
       expect(result).to eq("Summary in same language")
+    end
+
+    it "uses the PromptBuilder summary and translation prompt" do
+      expect(MistralTranslator::PromptBuilder).to receive(:summary_and_translation_prompt)
+        .with(long_text.strip, "fr", "en", 100, context: "blog", style: "formal")
+        .and_call_original
+
+      summarizer.summarize_and_translate(long_text, from: "fr", to: "en", max_words: 100,
+                                                    context: "blog", style: "formal")
+    end
+
+    it "retries an unusable response, then raises instead of falling back" do
+      allow(summarizer).to receive(:sleep)
+      allow(mock_client).to receive(:complete).and_return("Pas de JSON")
+
+      expect { summarizer.summarize_and_translate(long_text, from: "fr", to: "en") }
+        .to raise_error(MistralTranslator::InvalidResponseError)
+      expect(mock_client).to have_received(:complete).exactly(4).times
+    end
+
+    it "rejects a text over the size limit" do
+      expect { summarizer.summarize_and_translate("a" * 50_001, from: "fr", to: "en") }
+        .to raise_error(ArgumentError, /too long/i)
     end
 
     it "validates required inputs" do
@@ -326,19 +349,6 @@ RSpec.describe MistralTranslator::Summarizer do
       it "handles empty string" do
         result = summarizer.send(:clean_document_content, "")
         expect(result).to eq("")
-      end
-    end
-
-    describe "#build_summary_translation_prompt" do
-      it "builds correct prompt for summary and translation" do
-        prompt = summarizer.send(:build_summary_translation_prompt, "Sample text", "fr", "en", 100)
-
-        expect(prompt.instructions).to include("français (fr)")
-        expect(prompt.instructions).to include("anglais (en)")
-        expect(prompt.instructions).to include("100 mots")
-        expect(prompt.instructions).to include("summarize_and_translate")
-        expect(prompt.instructions).not_to include("Sample text")
-        expect(prompt.text).to include("Sample text")
       end
     end
 
