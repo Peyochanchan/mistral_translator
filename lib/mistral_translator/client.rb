@@ -22,15 +22,18 @@ module MistralTranslator
       @rate_limiter = rate_limiter || Security::BasicRateLimiter.new
     end
 
-    def complete(prompt, max_tokens: nil, temperature: nil, context: {})
+    # json: true demande un objet JSON à l'API (response_format json_object) ;
+    # le prompt doit alors décrire le JSON attendu.
+    def complete(prompt, max_tokens: nil, temperature: nil, context: {}, json: false)
       # Vérifier le rate limit avant de faire la requête
       @rate_limiter.wait_and_record!
 
-      ctx = (context || {}).merge(operation: :complete, json: true)
+      ctx = (context || {}).merge(operation: :complete)
       start_time = Time.now
       trigger_translation_start_callback(ctx, prompt)
 
-      response = make_request_with_retry(prompt, max_tokens, temperature, ctx)
+      request_options = { max_tokens: max_tokens, temperature: temperature, json: json }
+      response = make_request_with_retry(prompt, request_options, ctx)
       content = extract_content_from_response(response)
 
       trigger_translation_complete_callback(ctx, prompt, content, start_time)
@@ -49,7 +52,7 @@ module MistralTranslator
       start_time = Time.now
       trigger_translation_start_callback(ctx, prompt)
 
-      response = make_request_with_retry(prompt, max_tokens, temperature, ctx)
+      response = make_request_with_retry(prompt, { max_tokens: max_tokens, temperature: temperature }, ctx)
       content = extract_chat_content_from_response(response)
 
       trigger_translation_complete_callback(ctx, prompt, content, start_time)

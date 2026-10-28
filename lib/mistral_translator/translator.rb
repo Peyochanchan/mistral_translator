@@ -66,6 +66,7 @@ module MistralTranslator
     # Traduction vers plusieurs langues avec support du batch
     def translate_to_multiple(text, from:, to:, **options)
       validate_translation_inputs!(text, from, to)
+      Security::BasicValidator.validate_text!(text)
 
       source_locale = LocaleHelper.validate_locale!(from)
       target_locales = Array(to).map { |locale| LocaleHelper.validate_locale!(locale) }
@@ -81,37 +82,33 @@ module MistralTranslator
     end
 
     # Traduction en lot (plusieurs textes vers une langue)
-    # Options : context, glossary, preserve_html (comme #translate)
-    def translate_batch(texts, from:, to:, **options)
+    def translate_batch(texts, from:, to:, context: nil, glossary: nil, preserve_html: false) # rubocop:disable Metrics/ParameterLists
       validated_texts = Security::BasicValidator.validate_batch!(texts)
       source_locale = LocaleHelper.validate_locale!(from)
       target_locale = LocaleHelper.validate_locale!(to)
 
       return handle_same_language_batch(validated_texts) if source_locale == target_locale
 
-      batch_config = { source_locale: source_locale, target_locale: target_locale, context: options[:context],
-                       glossary: options[:glossary], preserve_html: options.fetch(:preserve_html, false) }
+      batch_config = { source_locale: source_locale, target_locale: target_locale, context: context,
+                       glossary: glossary, preserve_html: preserve_html }
       process_mixed_batch(validated_texts, batch_config)
     end
 
     # Auto-détection de la langue source avec support du contexte
     def translate_auto(text, to:, context: nil, glossary: nil, preserve_html: false)
+      validated_text = Security::BasicValidator.validate_text!(text)
+      return "" if validated_text.empty?
+
       target_locale = LocaleHelper.validate_locale!(to)
 
-      # Premier appel pour détecter la langue
-      detection_prompt = build_language_detection_prompt(text)
-      detection_response = @client.complete(detection_prompt)
+      # Premier appel pour détecter la langue ; un échec lève une erreur
+      detection_response = @client.complete(build_language_detection_prompt(validated_text), json: true)
       detected_language = parse_language_detection(detection_response)
-
-      # Vérifier que la langue détectée est différente de la cible
-      if detected_language == target_locale
-        # Si même langue, retourner le texte original
-        return text
-      end
+      return validated_text if detected_language == target_locale
 
       # Puis traduction normale avec contexte
-      translate(text, from: detected_language, to: target_locale, context: context, glossary: glossary,
-                      preserve_html: preserve_html)
+      translate(validated_text, from: detected_language, to: target_locale, context: context, glossary: glossary,
+                                preserve_html: preserve_html)
     end
 
     private
@@ -174,6 +171,9 @@ module MistralTranslator
       parsed_result[:translated] if parsed_result
     rescue EmptyTranslationError
       ""
+    rescue InvalidResponseError
+      # Une réponse illisible fait échouer son élément, pas tout le lot
+      nil
     end
 
     def translate_with_retry(text, source_locale, target_locale, attempt = 0, **options)

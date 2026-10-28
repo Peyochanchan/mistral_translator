@@ -10,7 +10,7 @@ module MistralTranslator
         # Unique requête avec validation de qualité intégrée
         qp_options = { context: options[:context], glossary: options[:glossary] }
         quality_prompt = PromptBuilder.translation_with_validation_prompt(text, from, to, **qp_options)
-        quality_response = client.complete(quality_prompt, context: { from_locale: from, to_locale: to })
+        quality_response = client.complete(quality_prompt, context: { from_locale: from, to_locale: to }, json: true)
 
         quality_data = ResponseParser.parse_quality_check_response(quality_response)
 

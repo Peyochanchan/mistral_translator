@@ -88,7 +88,7 @@ module MistralTranslator
     def request_summary(prompt, target_locale, attempt = 0)
       log_debug("Summary attempt #{attempt + 1} for #{target_locale}")
 
-      result = ResponseParser.parse_summary_response(@client.complete(prompt))
+      result = ResponseParser.parse_summary_response(@client.complete(prompt, json: true))
       raise EmptyTranslationError, "Empty summary received" if result.nil? || result[:summary].to_s.empty?
 
       result[:summary]

@@ -94,15 +94,17 @@ module MistralTranslator
 
     # Helper pour la gestion des erreurs et retry
     module ErrorHandler
-      def make_request_with_retry(prompt, max_tokens, temperature, context, attempt = 0)
+      # request_options : max_tokens, temperature, json
+      def make_request_with_retry(prompt, request_options, context, attempt = 0)
         context[:attempt] = attempt
-        response = make_request(prompt, max_tokens, temperature, json: context[:json] || false)
+        response = make_request(prompt, request_options[:max_tokens], request_options[:temperature],
+                                json: request_options.fetch(:json, false))
 
         # Vérifier les erreurs dans la réponse
         check_response_for_errors(response)
 
         if rate_limit_exceeded?(response)
-          handle_rate_limit(prompt, max_tokens, temperature, context, attempt)
+          handle_rate_limit(prompt, request_options, context, attempt)
         else
           response
         end
@@ -122,18 +124,13 @@ module MistralTranslator
         end
       end
 
+      # Seul le statut compte : le corps d'une réponse 200 contient le texte traduit,
+      # qui peut très bien parler de « rate limit ».
       def rate_limit_exceeded?(response)
-        return true if response.code.to_i == 429
-
-        return false unless response.code.to_i == 200
-
-        body_content = response.body.to_s
-        return false if body_content.length > 1000
-
-        body_content.match?(/rate.?limit|quota.?exceeded/i)
+        response.code.to_i == 429
       end
 
-      def handle_rate_limit(prompt, max_tokens, temperature, context, attempt)
+      def handle_rate_limit(prompt, request_options, context, attempt)
         unless attempt < @retry_delays.length
           raise RateLimitError, "API rate limit exceeded after #{@retry_delays.length} retries"
         end
@@ -150,7 +147,7 @@ module MistralTranslator
 
         log_rate_limit_retry(wait_time, attempt)
         sleep(wait_time)
-        make_request_with_retry(prompt, max_tokens, temperature, context, attempt + 1)
+        make_request_with_retry(prompt, request_options, context, attempt + 1)
       end
     end
 
@@ -168,7 +165,7 @@ module MistralTranslator
             attempt: 0
           }
 
-          result = complete(request[:prompt], context: context)
+          result = complete(request[:prompt], context: context, json: true)
           results << {
             success: true,
             result: result,

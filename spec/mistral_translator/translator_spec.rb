@@ -71,7 +71,7 @@ RSpec.describe MistralTranslator::Translator do
                 from_locale: "en",
                 to_locale: "fr",
                 attempt: 0
-              })
+              }, json: true)
 
       translator.translate("Hello", from: "en", to: "fr")
     end
@@ -369,6 +369,22 @@ RSpec.describe MistralTranslator::Translator do
       expect(result).to eq({ 0 => "Bonjour", 1 => "Au revoir" })
     end
 
+    it "fails only the item whose response is unreadable" do
+      allow(mock_client).to receive(:translate_batch).and_return(
+        [
+          { success: true, result: '{"content": {"target": "Bonjour"}}', original_request: { index: 0 } },
+          { success: true, result: "{invalid: json}", original_request: { index: 1 } }
+        ]
+      )
+
+      expect(translator.translate_batch(%w[Hello World], from: "en", to: "fr")).to eq({ 0 => "Bonjour", 1 => nil })
+    end
+
+    it "rejects an unknown option" do
+      expect { translator.translate_batch(["Hello"], from: "en", to: "fr", glosary: {}) }
+        .to raise_error(ArgumentError, /glosary/)
+    end
+
     it "passes preserve_html to each batch prompt" do
       texts = ["<p>Hello</p>", "<p>Goodbye</p>"]
       expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
@@ -501,12 +517,21 @@ RSpec.describe MistralTranslator::Translator do
       translator.translate_auto("<p>Bonjour</p>", to: "en", preserve_html: true)
     end
 
-    it "uses english as fallback for detection errors" do
-      allow(mock_client).to receive(:complete)
-        .and_return("invalid json", translation_response)
+    it "raises instead of guessing when detection fails" do
+      allow(mock_client).to receive(:complete).and_return("invalid json")
 
-      # Ne doit pas lever d'erreur, utilise 'en' par défaut
-      expect { translator.translate_auto("Hello", to: "fr") }.not_to raise_error
+      expect { translator.translate_auto("Bonjour", to: "en") }
+        .to raise_error(MistralTranslator::InvalidResponseError, "Language detection failed")
+    end
+
+    it "rejects a text over the size limit before calling the API" do
+      expect { translator.translate_auto("a" * 50_001, to: "en") }.to raise_error(ArgumentError, /too long/i)
+      expect(mock_client).not_to have_received(:complete)
+    end
+
+    it "returns an empty string for an empty text" do
+      expect(translator.translate_auto(nil, to: "en")).to eq("")
+      expect(mock_client).not_to have_received(:complete)
     end
   end
 
@@ -634,24 +659,18 @@ RSpec.describe MistralTranslator::Translator do
         expect(result).to eq("fr")
       end
 
-      it "returns 'en' for unsupported detected language" do
+      it "raises for an unsupported detected language" do
         response = '{"metadata": {"detected_language": "klingon"}}'
-        allow(MistralTranslator::LocaleHelper).to receive(:locale_supported?).with("klingon").and_return(false)
 
-        result = translator.send(:parse_language_detection, response)
-        expect(result).to eq("en")
+        expect { translator.send(:parse_language_detection, response) }
+          .to raise_error(MistralTranslator::InvalidResponseError)
       end
 
-      it "returns 'en' for invalid JSON" do
-        response = "invalid json"
-        result = translator.send(:parse_language_detection, response)
-        expect(result).to eq("en")
-      end
-
-      it "returns 'en' when no JSON found" do
-        response = "No JSON here"
-        result = translator.send(:parse_language_detection, response)
-        expect(result).to eq("en")
+      it "raises for an unreadable response without keeping its cause" do
+        ["invalid json", "No JSON here", "[]", '{"metadata": "fr"}'].each do |response|
+          expect { translator.send(:parse_language_detection, response) }
+            .to raise_error(MistralTranslator::InvalidResponseError) { |error| expect(error.cause).to be_nil }
+        end
       end
     end
   end

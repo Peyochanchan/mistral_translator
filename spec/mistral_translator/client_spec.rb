@@ -65,6 +65,13 @@ RSpec.describe MistralTranslator::Client do
           )
       end
 
+      it "requests a JSON object only when json is true" do
+        client.complete(prompt, context: context, json: true)
+
+        expect(WebMock).to(have_requested(:post, "https://api.mistral.ai/v1/chat/completions")
+          .with { |req| JSON.parse(req.body)["response_format"] == { "type" => "json_object" } })
+      end
+
       it "sends correct request body" do
         client.complete(prompt, max_tokens: 100, temperature: 0.7, context: context)
 
@@ -74,8 +81,7 @@ RSpec.describe MistralTranslator::Client do
               model: "mistral-small-latest",
               messages: [{ role: "user", content: prompt }],
               max_tokens: 100,
-              temperature: 0.7,
-              response_format: { type: "json_object" }
+              temperature: 0.7
             }.to_json
           )
       end
@@ -460,9 +466,9 @@ RSpec.describe MistralTranslator::Client do
         expect(client.send(:rate_limit_exceeded?, response)).to be true
       end
 
-      it "detects rate limit by message content" do
-        response = double(code: "200", body: "rate limit exceeded")
-        expect(client.send(:rate_limit_exceeded?, response)).to be true
+      it "ignores a 200 response that talks about rate limits" do
+        response = double(code: "200", body: '{"content": {"target": "Rate limit exceeded"}}')
+        expect(client.send(:rate_limit_exceeded?, response)).to be false
       end
 
       it "returns false for normal responses" do

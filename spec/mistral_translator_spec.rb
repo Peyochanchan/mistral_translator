@@ -408,7 +408,7 @@ RSpec.describe "MistralTranslator Integration" do
       response = { content: { target: "Bonjour" } }.to_json
 
       # Mock le client pour appeler les callbacks comme dans la vraie vie
-      expect(mock_client).to receive(:complete) do |prompt, context:|
+      expect(mock_client).to receive(:complete) do |prompt, context:, **|
         # Simuler l'appel des callbacks comme dans Client#complete
         Time.now
 
@@ -454,7 +454,7 @@ RSpec.describe "MistralTranslator Integration" do
       response = { content: { target: "Bonjour" } }.to_json
 
       # Mock le client pour appeler les callbacks de métriques
-      expect(mock_client).to receive(:complete) do |prompt, context:|
+      expect(mock_client).to receive(:complete) do |prompt, context:, **|
         # Simuler l'appel des callbacks de métriques comme dans Client#complete
         MistralTranslator.configuration.trigger_translation_start(
           context[:from_locale],
