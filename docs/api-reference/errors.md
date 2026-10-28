@@ -210,8 +210,10 @@ end
 
 **Attributs:**
 
-- `message` (String) - Description de l'erreur
-- `raw_response` (String, optionnel) - Réponse brute reçue
+- `message` (String) - Description de l'erreur. Elle ne contient jamais la réponse de l'API, pour qu'aucun texte traduit ne finisse dans les journaux.
+- `raw_response` (String, optionnel) - Réponse brute reçue, accessible au code appelant uniquement
+
+L'erreur Ruby d'origine (`JSON::ParserError`, `NoMethodError`…) n'est pas conservée dans `cause` : son message cite la réponse.
 
 **Causes courantes:**
 
@@ -321,13 +323,13 @@ end
 
 ### `MistralTranslator::SecurityError`
 
-**Description:** Violation de sécurité détectée.
+**Statut:** définie pour usage futur ; la gem ne la lève actuellement nulle part. Inutile de la rattraper.
 
-**Causes courantes:**
+Les contrôles de sécurité existants lèvent d'autres erreurs :
 
-- Texte dépassant la taille limite (50,000 caractères)
-- Contenu potentiellement malveillant détecté
-- Tentative d'injection de prompt
+- Texte de plus de 50 000 caractères : `ArgumentError` (traductions, détection automatique et résumés)
+- Proxy invalide : `ConfigurationError`
+- Instructions glissées dans le texte à traduire : rien n'est levé. Le texte est envoyé à part des consignes (message `user`), entre délimiteurs, avec une règle demandant au modèle de le traiter comme une donnée.
 
 **Exemple:**
 
@@ -344,44 +346,33 @@ end
 **Solutions:**
 
 - Diviser les textes longs en plusieurs parties
-- Valider le contenu avant traduction
 - Utiliser `translate_batch` pour les lots importants
 
 ---
 
 ### `MistralTranslator::RateLimitExceededError`
 
-**Description:** Limite de taux personnalisée dépassée.
+**Statut:** définie pour usage futur ; la gem ne la lève actuellement nulle part.
 
 **Attributs:**
 
 - `wait_time` (Integer, optionnel) - Temps d'attente suggéré
 - `retry_after` (Integer, optionnel) - Timestamp de retry
 
-**Différence avec `RateLimitError`:**
+**Comportement réel des limites de débit:**
 
-- `RateLimitError` : Limite API Mistral (HTTP 429)
-- `RateLimitExceededError` : Limite locale de la gem
-
-**Exemple:**
+- Limite locale (`Security::BasicRateLimiter`) : la requête **attend** qu'un créneau se libère, sans lever d'erreur.
+- Limite de l'API Mistral (HTTP 429) : le client relance avec les délais de `config.retry_delays`, puis lève `RateLimitError`.
 
 ```ruby
-# Configuration du rate limiter local
 rate_limiter = MistralTranslator::Security::BasicRateLimiter.new(
   max_requests: 10,
   window_seconds: 60
 )
-
 client = MistralTranslator::Client.new(rate_limiter: rate_limiter)
 
-begin
-  # Trop de requêtes locales
-  15.times { client.complete("Hello") }
-rescue MistralTranslator::RateLimitExceededError => e
-  puts "Local rate limit exceeded"
-  sleep(e.wait_time) if e.wait_time
-  retry
-end
+# Au-delà de 10 requêtes par minute, les appels attendent leur tour
+15.times { client.complete("Hello") }
 ```
 
 ---

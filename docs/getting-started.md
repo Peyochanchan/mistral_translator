@@ -39,14 +39,20 @@ MistralTranslator.translate_auto("Guten Tag", to: "fr")
 ## 🌍 Langues Supportées
 
 ```ruby
-# Vérifier les langues disponibles
+# Les 182 langues ISO 639-1 sont disponibles
 MistralTranslator::LocaleHelper.supported_locales
-# => ["fr", "en", "es", "pt", "de", "it", "nl", "ru", "mg", "ja", "ko", "zh", "ar"]
+# => ["aa", "ab", "ae", "af", ..., "zh", "zu"]
+
+# Les noms anglais et français sont acceptés à la place du code
+MistralTranslator::LocaleHelper.language_to_locale("allemand")
+# => "de"
 
 # Vérifier une langue spécifique
 MistralTranslator::LocaleHelper.locale_supported?("ja")
 # => true
 ```
+
+La qualité de traduction dépend du modèle Mistral : excellente pour les langues les plus parlées, plus faible pour les langues rares. Vérifiez le résultat avant de vous appuyer sur une langue rare.
 
 ## 🚨 Gestion d'Erreurs Simple
 

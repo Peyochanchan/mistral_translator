@@ -1,5 +1,47 @@
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-28
+
+### Changed
+
+These changes alter behaviour that callers may rely on:
+
+- Unusable responses now raise instead of being returned. A response without JSON, with a target that is not text, or with a blank target raises `InvalidResponseError` or `EmptyTranslationError` after the usual retries. Previously the raw response text could be stored as the translation or the summary.
+- `summarize_and_translate` no longer falls back to an untranslated summary in the source language; it retries like the other summaries, then raises.
+- `translate_auto` raises `InvalidResponseError` when language detection is unreadable or names an unsupported language. It used to assume English, which returned the source text untranslated when the target was English.
+- `PromptBuilder` methods return a `MistralTranslator::Prompt` (`instructions` and `text`) instead of a String. `Prompt#to_s` gives the previous single-text form.
+- Prompts are sent as two messages: instructions in the system message, the text alone in the user message, between delimiters, with a rule telling the model to treat it as data.
+- `Client#complete` takes `json: false`. The gem's own calls pass `json: true`, which sends `response_format: json_object`.
+- 182 languages instead of 13: every ISO 639-1 code named by CLDR. `SUPPORTED_LANGUAGES` keeps the native names, unchanged for the original 13, and `supported_languages` returns a much longer string. Quality depends on the model and is weaker for rare languages.
+- In `translate_batch` and the batch path of `translate_to_multiple`, an unreadable response fails its own item (`nil`) instead of the whole batch.
+- `translate_auto`, `translate_to_multiple` and the summaries enforce the same 50,000 character limit as `translate`.
+
+### Added
+
+- `config.proxy`: an `http://` proxy URL or URI, or `:env` to read `HTTPS_PROXY`, then `HTTP_PROXY`, honouring `NO_PROXY`. Disabled by default.
+- `preserve_html:` in `translate_batch` and `translate_auto`.
+- `context:` and `style:` in every summary method.
+- English and French language names are accepted in place of codes (`"German"`, `"allemand"`), and locale suggestions are based on language names.
+- `bin/generate_languages` regenerates `lib/mistral_translator/data/languages.json` from CLDR (macOS).
+
+### Fixed
+
+- `Helpers.smart_summarize` raised `ArgumentError` on every call.
+- A translated text mentioning "rate limit" or "quota exceeded" was taken for a rate limit, retried, then failed. Only the 429 status counts now.
+- Context and glossary were formatted three different ways; an empty glossary printed `GLOSSAIRE : {}` in quality check prompts, and the `has_context` / `has_glossary` metadata were never set.
+- `translate_batch` silently ignored misspelled options.
+- Locale suggestions returned unrelated codes once every ISO 639-1 language was supported.
+
+### Security
+
+- User text and API responses no longer reach logs or error messages: the verbose request log records sizes only, error messages carry no response content, errors no longer keep the original Ruby error as `cause`, and the error callback receives the sanitized error. The response stays available through `InvalidResponseError#raw_response`.
+- Delimiters found in the text are neutralised so it cannot close its block, and `Prompt#inspect` shows lengths only.
+- `https://` proxies are rejected: net-http-persistent talks to the proxy in clear, so their credentials would travel unencrypted.
+
+### Removed
+
+- `TranslatorHelpers::PromptHandler` and the test-only `make_request` fallback in `perform_client_request`.
+
 ## [0.3.2] - 2026-10-28
 
 ### Fixed

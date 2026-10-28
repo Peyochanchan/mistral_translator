@@ -30,14 +30,16 @@ MistralTranslator.translate("Bonjour le monde", from: "fr", to: "en")
 - **Native Rails integration** (Mobility, Globalize, I18n attributes)
 - **Batch processing** for high-volume translations
 - **Multi-level summarization** with translation
-- **Robust error handling** with automatic retry and fallback
+- **Robust error handling** with automatic retries; unusable responses raise instead of being returned
 - **Complete monitoring** with metrics and callbacks
 - **Thread-safe & concurrent** with connection pooling ([docs](https://peyochanchan.github.io/mistral_translator/#/advanced-usage/concurrent-async))
 - **Built-in rate limiting** and security
 
 ## Supported Languages
 
-`fr` `en` `es` `pt` `de` `it` `nl` `ru` `mg` `ja` `ko` `zh` `ar`
+All 182 ISO 639-1 languages named by CLDR (`fr`, `en`, `es`, `de`, `ja`, `br`, `wo`, `mg`…). `MistralTranslator.supported_locales` lists them, and English or French names are accepted in place of codes (`"German"`, `"allemand"`).
+
+Translation quality depends on the Mistral model: excellent for widely used languages, weaker for rare ones. Check the output before relying on a rare language.
 
 ## Installation
 
@@ -162,6 +164,8 @@ MistralTranslator.configure do |config|
   config.model = "mistral-small-latest"            # AI model to use (an alias that follows the current Mistral Small)
   config.retry_delays = [1, 2, 4, 8, 16]          # Retry delays in seconds
   config.enable_metrics = true                     # Enable performance metrics
+  config.proxy = :env                              # HTTP proxy: nil (default), "http://host:port", or :env
+                                                   # to read HTTPS_PROXY / HTTP_PROXY and NO_PROXY
 
   # Callbacks for monitoring
   config.on_translation_complete = ->(from, to, orig_len, trans_len, duration) {
@@ -188,6 +192,9 @@ rescue MistralTranslator::AuthenticationError
 rescue MistralTranslator::UnsupportedLanguageError => e
   # Language not supported
   Rails.logger.error "Language '#{e.language}' not supported"
+rescue MistralTranslator::InvalidResponseError, MistralTranslator::EmptyTranslationError
+  # The model kept returning an unusable answer after the retries: nothing is returned
+  Rails.logger.error "Translation unavailable"
 rescue MistralTranslator::Error => e
   # General error handling
   Rails.logger.error "Translation failed: #{e.message}"
