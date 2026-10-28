@@ -19,10 +19,10 @@ module MistralTranslator
           build_translation_result(translation_data, translated_text)
         rescue JSON::ParserError => e
           handle_json_parse_error(e, raw_content, json_content)
-        rescue EmptyTranslationError
-          raise # Re-raise EmptyTranslationError
+        rescue EmptyTranslationError, InvalidResponseError
+          raise
         rescue StandardError => e
-          raise InvalidResponseError, "Error processing response: #{e.message}"
+          raise InvalidResponseError.new("Error processing response (#{e.class})", raw_content)
         end
       end
 
@@ -42,9 +42,9 @@ module MistralTranslator
           metadata: data["metadata"] || {}
         }
       rescue JSON::ParserError
-        raise InvalidResponseError, "Invalid JSON in quality check response"
+        raise InvalidResponseError.new("Invalid JSON in quality check response", raw_content)
       rescue StandardError => e
-        raise InvalidResponseError, "Error processing quality check response: #{e.message}"
+        raise InvalidResponseError.new("Error processing quality check response (#{e.class})", raw_content)
       end
 
       def parse_json_content(json_content)
@@ -76,19 +76,12 @@ module MistralTranslator
         }
       end
 
-      def handle_json_parse_error(error, raw_content, json_content)
-        error_details = {
-          error_message: error.message,
-          raw_content_length: raw_content&.length,
-          json_content_length: json_content&.length,
-          has_json_content: !json_content.nil?
-        }
-        Logger.debug_if_verbose(
-          "JSON parse failed: #{error.message} raw_len=#{error_details[:raw_content_length]} " \
-          "json_len=#{error_details[:json_content_length]} snippet=#{raw_content&.slice(0, 120)}",
-          sensitive: false
-        )
-        raise InvalidResponseError, "Invalid JSON in response: #{error.message}. Details: #{error_details}"
+      # Le message de JSON::ParserError cite la réponse : seules les longueurs sont journalisées.
+      # La réponse reste accessible au code appelant via InvalidResponseError#raw_response.
+      def handle_json_parse_error(_error, raw_content, json_content)
+        details = "raw_len=#{raw_content&.length} json_len=#{json_content&.length}"
+        Logger.debug_if_verbose("JSON parse failed: #{details}", sensitive: false)
+        raise InvalidResponseError.new("Invalid JSON in response (#{details})", raw_content)
       end
 
       def parse_summary_response(raw_content)
@@ -96,7 +89,7 @@ module MistralTranslator
 
         begin
           json_content = extract_json_from_content(raw_content)
-          raise InvalidResponseError, "No JSON in summary response" unless json_content
+          raise InvalidResponseError.new("No JSON in summary response", raw_content) unless json_content
 
           summary_data = JSON.parse(json_content)
           summary_text = extract_target_content(summary_data)
@@ -109,11 +102,11 @@ module MistralTranslator
             metadata: summary_data["metadata"] || {}
           }
         rescue JSON::ParserError
-          raise InvalidResponseError, "Invalid JSON in summary response: #{raw_content}"
+          raise InvalidResponseError.new("Invalid JSON in summary response", raw_content)
         rescue EmptyTranslationError, InvalidResponseError
           raise
         rescue StandardError => e
-          raise InvalidResponseError, "Error processing summary response: #{e.message}"
+          raise InvalidResponseError.new("Error processing summary response (#{e.class})", raw_content)
         end
       end
 
@@ -122,7 +115,7 @@ module MistralTranslator
 
         begin
           json_content = extract_json_from_content(raw_content)
-          raise InvalidResponseError, "Invalid JSON in bulk response: #{raw_content}" unless json_content
+          raise InvalidResponseError.new("Invalid JSON in bulk response", raw_content) unless json_content
 
           bulk_data = JSON.parse(json_content)
           translations = bulk_data["translations"]
@@ -137,12 +130,11 @@ module MistralTranslator
             }
           end
         rescue JSON::ParserError
-          raise InvalidResponseError, "Invalid JSON in bulk response: #{raw_content}"
+          raise InvalidResponseError.new("Invalid JSON in bulk response", raw_content)
+        rescue InvalidResponseError
+          raise
         rescue StandardError => e
-          # Ne pas wrapper l'erreur "No translations array in response"
-          raise e if e.message == "No translations array in response"
-
-          raise InvalidResponseError, "Error processing bulk response: #{e.message}"
+          raise InvalidResponseError.new("Error processing bulk response (#{e.class})", raw_content)
         end
       end
 

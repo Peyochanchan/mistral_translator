@@ -363,8 +363,29 @@ RSpec.describe MistralTranslator::ResponseParser do
 
         expect { described_class.parse_translation_response(invalid_json) }.to raise_error(
           MistralTranslator::InvalidResponseError,
-          /Invalid JSON in response.*Details:/
+          /Invalid JSON in response \(raw_len=\d+ json_len=\d+\)/
         )
+      end
+
+      it "keeps the response out of the message but available to the caller" do
+        invalid_json = '{"secret_text": confidentiel}'
+
+        expect { described_class.parse_translation_response(invalid_json) }.to raise_error(
+          MistralTranslator::InvalidResponseError
+        ) { |error|
+          expect(error.message).not_to include("confidentiel")
+          expect(error.raw_response).to eq(invalid_json)
+        }
+      end
+
+      it "keeps summary and bulk responses out of error messages" do
+        expect { described_class.parse_summary_response("Texte confidentiel") }.to raise_error(
+          MistralTranslator::InvalidResponseError
+        ) { |error| expect(error.message).not_to include("confidentiel") }
+
+        expect { described_class.parse_bulk_translation_response("Texte confidentiel") }.to raise_error(
+          MistralTranslator::InvalidResponseError
+        ) { |error| expect(error.message).not_to include("confidentiel") }
       end
 
       it "rejects content that is too large" do

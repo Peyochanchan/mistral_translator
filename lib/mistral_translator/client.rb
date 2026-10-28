@@ -129,11 +129,8 @@ module MistralTranslator
         error,
         context[:attempt] || 0
       )
-      message = if context[:operation] == :chat
-                  "JSON parse error: #{error.message}"
-                else
-                  "Invalid JSON in API response: #{error.message}"
-                end
+      # Le message de JSON::ParserError cite la réponse de l'API : il n'est pas repris.
+      message = context[:operation] == :chat ? "JSON parse error" : "Invalid JSON in API response"
       raise InvalidResponseError, message
     end
 
@@ -144,7 +141,7 @@ module MistralTranslator
         error,
         context[:attempt] || 0
       )
-      raise InvalidResponseError, "Invalid response structure: #{error.message}"
+      raise InvalidResponseError, "Invalid response structure (#{error.class})"
     end
   end
 end

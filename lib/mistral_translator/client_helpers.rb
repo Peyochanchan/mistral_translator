@@ -184,10 +184,13 @@ module MistralTranslator
 
     # Helper pour le logging
     module LoggingHelper
+      # Jamais le contenu des messages : seulement le modèle et les tailles
       def log_request_response(request_body, response)
-        # Log seulement si mode verbose activé
-        Logger.debug_if_verbose("Request sent to API: #{request_body.to_json}", sensitive: true)
-        Logger.debug_if_verbose("Response received: #{response.code}", sensitive: false)
+        sizes = request_body[:messages].map { |message| "#{message[:role]}=#{message[:content].to_s.length}" }
+        Logger.debug_if_verbose(
+          "Request sent to API: model=#{request_body[:model]} #{sizes.join(" ")}, response #{response.code}",
+          sensitive: false
+        )
       end
 
       def log_rate_limit_retry(wait_time, attempt)

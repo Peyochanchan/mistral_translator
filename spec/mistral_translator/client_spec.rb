@@ -408,6 +408,22 @@ RSpec.describe MistralTranslator::Client do
       end
     end
 
+    describe "#log_request_response" do
+      it "logs sizes, never the messages" do
+        split_prompt = MistralTranslator::Prompt.for_text("Consignes", "Texte confidentiel")
+        body = client.send(:build_request_body, split_prompt, nil, nil)
+        response = instance_double(Net::HTTPResponse, code: "200")
+
+        expect(MistralTranslator::Logger).to receive(:debug_if_verbose) do |message, **|
+          expect(message).to include("model=mistral-small-latest", "system=9", "user=")
+          expect(message).not_to include("confidentiel")
+          expect(message).not_to include("Consignes")
+        end
+
+        client.send(:log_request_response, body, response)
+      end
+    end
+
     describe "#headers" do
       it "includes all required headers" do
         headers = client.send(:headers)
