@@ -527,39 +527,41 @@ RSpec.describe MistralTranslator::Translator do
 
         expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
           .with("Hello", "en", "fr", preserve_html: false)
-          .and_return(MistralTranslator::Prompt.for_text("Tu es un traducteur professionnel.\n\nRÈGLES :", "Hello"))
+          .and_return(MistralTranslator::Prompt.new(instructions: "Tu es un traducteur professionnel.\n\nRÈGLES :",
+                                                    text: "Hello"))
 
         result = translator.send(:build_translation_prompt, "Hello", "en", "fr", context: context, glossary: glossary)
 
-        expect(result.system).to include("CONTEXTE : technical documentation")
-        expect(result.system).to include("GLOSSAIRE (à respecter strictement) : API → API, bug → bogue")
+        expect(result.instructions).to include("CONTEXTE : technical documentation")
+        expect(result.instructions).to include("GLOSSAIRE (à respecter strictement) : API → API, bug → bogue")
       end
     end
 
     describe "#enrich_prompt_with_context" do
       let(:base_prompt) do
-        MistralTranslator::Prompt.for_text("Tu es un traducteur.\n\nRÈGLES :\n- Traduis fidèlement", "Hello")
+        MistralTranslator::Prompt.new(instructions: "Tu es un traducteur.\n\nRÈGLES :\n- Traduis fidèlement",
+                                      text: "Hello")
       end
 
       it "adds context section" do
         context = "medical documentation"
         result = translator.send(:enrich_prompt_with_context, base_prompt, context, nil)
 
-        expect(result.system).to include("CONTEXTE : medical documentation")
-        expect(result.system).to include("CONTEXTE : medical documentation\n\nRÈGLES :")
+        expect(result.instructions).to include("CONTEXTE : medical documentation")
+        expect(result.instructions).to include("CONTEXTE : medical documentation\n\nRÈGLES :")
       end
 
       it "adds glossary section" do
         glossary = { "heart" => "cœur", "lung" => "poumon" }
         result = translator.send(:enrich_prompt_with_context, base_prompt, nil, glossary)
 
-        expect(result.system).to include("GLOSSAIRE (à respecter strictement) : heart → cœur, lung → poumon")
+        expect(result.instructions).to include("GLOSSAIRE (à respecter strictement) : heart → cœur, lung → poumon")
       end
 
       it "keeps the user text out of the enrichment" do
         result = translator.send(:enrich_prompt_with_context, base_prompt, "medical", nil)
 
-        expect(result.user).to eq(base_prompt.user)
+        expect(result.text).to eq(base_prompt.text)
       end
 
       it "adds both context and glossary" do
@@ -567,8 +569,8 @@ RSpec.describe MistralTranslator::Translator do
         glossary = { "heart" => "cœur" }
         result = translator.send(:enrich_prompt_with_context, base_prompt, context, glossary)
 
-        expect(result.system).to include("CONTEXTE : medical")
-        expect(result.system).to include("GLOSSAIRE (à respecter strictement) : heart → cœur")
+        expect(result.instructions).to include("CONTEXTE : medical")
+        expect(result.instructions).to include("GLOSSAIRE (à respecter strictement) : heart → cœur")
       end
 
       it "returns original prompt when no enrichments" do

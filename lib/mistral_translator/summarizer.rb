@@ -160,14 +160,14 @@ module MistralTranslator
       source_name = LocaleHelper.prompt_language_name(source_locale)
       target_name = LocaleHelper.prompt_language_name(target_locale)
 
-      Prompt.for_text(<<~PROMPT, text)
+      Prompt.new(instructions: <<~PROMPT, text: text)
         Tu es un assistant spécialisé dans la création de résumés et traductions simultanées.#{" "}
         Résume ET traduis le texte fourni en respectant ces règles strictes :
         1. Langue source : #{source_name}
         2. Langue cible : #{target_name}
         3. Longueur maximale : #{max_words} mots
         4. Créer un résumé du texte ET le traduire vers la langue cible
-        5. #{PromptBuilder::DATA_RULE}
+        5. #{Prompt::DATA_RULE}
         6. Format de réponse obligatoire en JSON :
         {
           "content": {

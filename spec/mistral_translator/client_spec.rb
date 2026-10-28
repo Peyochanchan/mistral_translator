@@ -395,7 +395,7 @@ RSpec.describe MistralTranslator::Client do
       end
 
       it "sends a Prompt as system and user messages" do
-        split_prompt = MistralTranslator::Prompt.for_text("Consignes", "Texte")
+        split_prompt = MistralTranslator::Prompt.new(instructions: "Consignes", text: "Texte")
         body = client.send(:build_request_body, split_prompt, nil, nil)
 
         expect(body[:messages]).to eq(split_prompt.messages)
@@ -410,7 +410,7 @@ RSpec.describe MistralTranslator::Client do
 
     describe "#log_request_response" do
       it "logs sizes, never the messages" do
-        split_prompt = MistralTranslator::Prompt.for_text("Consignes", "Texte confidentiel")
+        split_prompt = MistralTranslator::Prompt.new(instructions: "Consignes", text: "Texte confidentiel")
         body = client.send(:build_request_body, split_prompt, nil, nil)
         response = instance_double(Net::HTTPResponse, code: "200")
 

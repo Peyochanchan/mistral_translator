@@ -226,7 +226,7 @@ module MistralTranslator
       return base_prompt if enriched_parts.empty?
 
       enriched_context = enriched_parts.join("\n")
-      base_prompt.with(system: base_prompt.system.sub("RÈGLES :", "#{enriched_context}\n\nRÈGLES :"))
+      base_prompt.with(instructions: base_prompt.instructions.sub("RÈGLES :", "#{enriched_context}\n\nRÈGLES :"))
     end
 
     def build_context_enrichment(context)
