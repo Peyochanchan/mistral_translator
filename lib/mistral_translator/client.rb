@@ -37,7 +37,7 @@ module MistralTranslator
       content
     rescue JSON::ParserError => e
       handle_json_parse_error(e, ctx)
-    rescue NoMethodError => e
+    rescue NoMethodError, TypeError => e
       handle_response_structure_error(e, ctx)
     end
 
@@ -56,7 +56,7 @@ module MistralTranslator
       content
     rescue JSON::ParserError => e
       handle_json_parse_error(e, ctx)
-    rescue NoMethodError => e
+    rescue NoMethodError, TypeError => e
       handle_response_structure_error(e, ctx)
     end
 
@@ -122,26 +122,25 @@ module MistralTranslator
       )
     end
 
-    def handle_json_parse_error(error, context)
-      MistralTranslator.configuration.trigger_translation_error(
-        context[:from_locale],
-        context[:to_locale],
-        error,
-        context[:attempt] || 0
-      )
-      # Le message de JSON::ParserError cite la réponse de l'API : il n'est pas repris.
-      message = context[:operation] == :chat ? "JSON parse error" : "Invalid JSON in API response"
-      raise InvalidResponseError, message
+    # Le message de JSON::ParserError, NoMethodError ou TypeError cite la réponse de l'API :
+    # ni lui ni l'erreur d'origine (cause) ne sont repris, et le callback reçoit l'erreur nettoyée.
+    def handle_json_parse_error(_error, context)
+      raise_invalid_response("Invalid JSON in API response", context)
     end
 
     def handle_response_structure_error(error, context)
+      raise_invalid_response("Invalid response structure (#{error.class})", context)
+    end
+
+    def raise_invalid_response(message, context)
+      error = InvalidResponseError.new(message)
       MistralTranslator.configuration.trigger_translation_error(
         context[:from_locale],
         context[:to_locale],
         error,
         context[:attempt] || 0
       )
-      raise InvalidResponseError, "Invalid response structure (#{error.class})"
+      raise error, cause: nil
     end
   end
 end

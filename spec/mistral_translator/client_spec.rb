@@ -293,11 +293,29 @@ RSpec.describe MistralTranslator::Client do
       stub_mistral_api(response_body: "invalid json")
 
       expect(MistralTranslator.configuration.on_translation_error)
-        .to receive(:call).with("en", "fr", anything, 0, anything)
+        .to receive(:call).with("en", "fr", an_instance_of(MistralTranslator::InvalidResponseError), 0, anything)
 
       expect { client.chat(prompt, context: context) }.to raise_error(
         MistralTranslator::InvalidResponseError,
-        /JSON parse error/
+        "Invalid JSON in API response"
+      ) { |error| expect(error.cause).to be_nil }
+    end
+
+    it "keeps the API response out of the error callback" do
+      stub_mistral_api(response_body: "Texte confidentiel")
+
+      expect(MistralTranslator.configuration.on_translation_error).to receive(:call) do |_from, _to, error, *|
+        expect(error.message).not_to include("confidentiel")
+      end
+
+      expect { client.chat(prompt, context: context) }.to raise_error(MistralTranslator::InvalidResponseError)
+    end
+
+    it "wraps an unexpected response shape" do
+      stub_mistral_api(response_body: [{ choices: [] }])
+
+      expect { client.chat(prompt, context: context) }.to raise_error(
+        MistralTranslator::InvalidResponseError, /Invalid response structure/
       )
     end
   end

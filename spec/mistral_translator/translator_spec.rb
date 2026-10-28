@@ -126,7 +126,7 @@ RSpec.describe MistralTranslator::Translator do
         allow(mock_client).to receive(:complete).and_return("Voici la traduction : Bonjour")
 
         expect { translator.translate("Hello", from: "en", to: "fr") }.to raise_error(
-          MistralTranslator::EmptyTranslationError
+          MistralTranslator::InvalidResponseError
         )
       end
 
