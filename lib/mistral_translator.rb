@@ -107,7 +107,7 @@ module MistralTranslator
 
     # Health check
     def health_check
-      client.complete("Hello", max_tokens: 10, context: {})
+      client.chat("Hello", max_tokens: 10)
       { status: :ok, message: "API connection successful" }
     rescue AuthenticationError
       { status: :error, message: "Authentication failed - check your API key" }

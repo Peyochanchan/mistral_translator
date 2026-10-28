@@ -78,8 +78,9 @@ RSpec.describe MistralTranslator::ResponseParser do
     end
 
     context "with invalid responses" do
-      it "returns nil for invalid JSON format" do
-        expect(described_class.parse_translation_response("{invalid json")).to be_nil
+      it "raises for an incomplete JSON" do
+        expect { described_class.parse_translation_response("{invalid json") }
+          .to raise_error(MistralTranslator::InvalidResponseError, /No JSON in translation response/)
       end
 
       it "returns nil for nil input" do
@@ -90,8 +91,14 @@ RSpec.describe MistralTranslator::ResponseParser do
         expect(described_class.parse_translation_response("")).to be_nil
       end
 
-      it "returns nil when no JSON found" do
-        expect(described_class.parse_translation_response("No JSON here!")).to be_nil
+      it "raises when no JSON is found" do
+        expect { described_class.parse_translation_response("No JSON here!") }
+          .to raise_error(MistralTranslator::InvalidResponseError, /No JSON in translation response/)
+      end
+
+      it "raises for a JSON array" do
+        expect { described_class.parse_translation_response('[{"target": "Bonjour"}]') }
+          .to raise_error(MistralTranslator::InvalidResponseError)
       end
 
       it "raises EmptyTranslationError for empty target" do
@@ -119,6 +126,72 @@ RSpec.describe MistralTranslator::ResponseParser do
           MistralTranslator::EmptyTranslationError
         )
       end
+    end
+  end
+
+  describe "nested JSON in target" do
+    it "unwraps a serialized response object found in target" do
+      nested = { content: { source: "Hello", target: "Bonjour + merci" } }.to_json
+      response = { content: { source: "Hello", target: nested } }.to_json
+
+      result = described_class.parse_translation_response(response)
+      expect(result[:translated]).to eq("Bonjour + merci")
+    end
+
+    it "keeps a target that only starts with a brace" do
+      response = { content: { source: "{x}", target: "{x} est une variable" } }.to_json
+
+      result = described_class.parse_translation_response(response)
+      expect(result[:translated]).to eq("{x} est une variable")
+    end
+
+    it "unwraps a response object nested as a Hash" do
+      response = { content: { target: { content: { target: "Salama" } } } }.to_json
+
+      expect(described_class.parse_translation_response(response)[:translated]).to eq("Salama")
+    end
+
+    it "rejects a target that is neither text nor a response object" do
+      [{ text: "Bonjour" }, ["Bonjour"], 42].each do |target|
+        expect { described_class.parse_translation_response({ content: { target: target } }.to_json) }
+          .to raise_error(MistralTranslator::InvalidResponseError, /Unexpected target/)
+      end
+    end
+
+    it "treats a blank target as empty" do
+      expect { described_class.parse_translation_response({ content: { target: " \n " } }.to_json) }
+        .to raise_error(MistralTranslator::EmptyTranslationError)
+    end
+
+    it "treats an empty nested target as empty" do
+      nested = { content: { target: "" } }.to_json
+
+      expect { described_class.parse_translation_response({ content: { target: nested } }.to_json) }
+        .to raise_error(MistralTranslator::EmptyTranslationError)
+    end
+
+    it "does not keep the original error as cause" do
+      expect { described_class.parse_translation_response('{"content": {"target": x}}') }
+        .to raise_error(MistralTranslator::InvalidResponseError) { |error| expect(error.cause).to be_nil }
+    end
+
+    it "ignores source and metadata that are not objects" do
+      result = described_class.parse_translation_response('{"content": "texte", "metadata": "x", "target": "Bonjour"}')
+
+      expect(result).to eq(original: nil, translated: "Bonjour", metadata: {})
+    end
+
+    it "validates the quality check translation" do
+      expect { described_class.parse_quality_check_response('{"metadata": {}}') }
+        .to raise_error(MistralTranslator::EmptyTranslationError)
+    end
+
+    it "keeps a JSON target without a known key" do
+      target = { "a" => 1 }.to_json
+      response = { content: { source: "Hello", target: target } }.to_json
+
+      result = described_class.parse_translation_response(response)
+      expect(result[:translated]).to eq(target)
     end
   end
 
@@ -160,6 +233,12 @@ RSpec.describe MistralTranslator::ResponseParser do
       expect { described_class.parse_summary_response(empty_summary) }.to raise_error(
         MistralTranslator::EmptyTranslationError,
         "Empty summary received"
+      )
+    end
+
+    it "rejects a raw text response" do
+      expect { described_class.parse_summary_response("Un résumé sans JSON") }.to raise_error(
+        MistralTranslator::InvalidResponseError
       )
     end
 
@@ -230,7 +309,7 @@ RSpec.describe MistralTranslator::ResponseParser do
     it "handles malformed bulk response" do
       expect { described_class.parse_bulk_translation_response("invalid json") }.to raise_error(
         MistralTranslator::InvalidResponseError,
-        /Invalid JSON in bulk response/
+        /No JSON in bulk response/
       )
     end
   end
@@ -332,8 +411,29 @@ RSpec.describe MistralTranslator::ResponseParser do
 
         expect { described_class.parse_translation_response(invalid_json) }.to raise_error(
           MistralTranslator::InvalidResponseError,
-          /Invalid JSON in response.*Details:/
+          /Invalid JSON in translation response \(raw_len=\d+ json_len=\d+\)/
         )
+      end
+
+      it "keeps the response out of the message but available to the caller" do
+        invalid_json = '{"secret_text": confidentiel}'
+
+        expect { described_class.parse_translation_response(invalid_json) }.to raise_error(
+          MistralTranslator::InvalidResponseError
+        ) { |error|
+          expect(error.message).not_to include("confidentiel")
+          expect(error.raw_response).to eq(invalid_json)
+        }
+      end
+
+      it "keeps summary and bulk responses out of error messages" do
+        expect { described_class.parse_summary_response("Texte confidentiel") }.to raise_error(
+          MistralTranslator::InvalidResponseError
+        ) { |error| expect(error.message).not_to include("confidentiel") }
+
+        expect { described_class.parse_bulk_translation_response("Texte confidentiel") }.to raise_error(
+          MistralTranslator::InvalidResponseError
+        ) { |error| expect(error.message).not_to include("confidentiel") }
       end
 
       it "rejects content that is too large" do
@@ -357,38 +457,26 @@ RSpec.describe MistralTranslator::ResponseParser do
       end
     end
 
-    describe ".extract_target_content" do
+    describe ".find_target" do
       it "finds content.target" do
-        data = { "content" => { "target" => "Found!" } }
-        result = described_class.send(:extract_target_content, data)
-        expect(result).to eq("Found!")
+        expect(described_class.send(:find_target, { "content" => { "target" => "Found!" } })).to eq("Found!")
       end
 
       it "finds translation.target" do
-        data = { "translation" => { "target" => "Found!" } }
-        result = described_class.send(:extract_target_content, data)
-        expect(result).to eq("Found!")
+        expect(described_class.send(:find_target, { "translation" => { "target" => "Found!" } })).to eq("Found!")
       end
 
       it "finds direct target" do
-        data = { "target" => "Found!" }
-        result = described_class.send(:extract_target_content, data)
-        expect(result).to eq("Found!")
+        expect(described_class.send(:find_target, { "target" => "Found!" })).to eq("Found!")
       end
 
       it "prioritizes content.target over others" do
-        data = {
-          "content" => { "target" => "Priority!" },
-          "target" => "Secondary"
-        }
-        result = described_class.send(:extract_target_content, data)
-        expect(result).to eq("Priority!")
+        data = { "content" => { "target" => "Priority!" }, "target" => "Secondary" }
+        expect(described_class.send(:find_target, data)).to eq("Priority!")
       end
 
       it "returns nil when no target found" do
-        data = { "other" => "value" }
-        result = described_class.send(:extract_target_content, data)
-        expect(result).to be_nil
+        expect(described_class.send(:find_target, { "other" => "value" })).to be_nil
       end
     end
   end

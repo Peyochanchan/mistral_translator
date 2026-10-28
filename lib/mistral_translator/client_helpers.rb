@@ -6,10 +6,10 @@ module MistralTranslator
   module ClientHelpers
     # Helper pour la gestion des requêtes HTTP
     module RequestHandler
-      def make_request(prompt, max_tokens, temperature)
+      def make_request(prompt, max_tokens, temperature, json: false)
         uri = URI("#{@base_uri}/v1/chat/completions")
 
-        request_body = build_request_body(prompt, max_tokens, temperature)
+        request_body = build_request_body(prompt, max_tokens, temperature, json: json)
 
         request = Net::HTTP::Post.new(uri.path, headers)
         request.body = request_body.to_json
@@ -22,6 +22,9 @@ module MistralTranslator
         raise ApiError, "Request timeout: #{e.message}"
       rescue Net::HTTPError => e
         raise ApiError, "HTTP error: #{e.message}"
+      rescue Net::HTTP::Persistent::Error => e
+        # Proxy ou API injoignable ; le message d'origine peut citer l'adresse du proxy
+        raise ApiError, "Connection failed (#{e.class})", cause: nil
       end
 
       def http_pool
@@ -34,6 +37,7 @@ module MistralTranslator
 
           # SSL/TLS configuration
           configure_ssl(pool)
+          configure_proxy(pool)
 
           pool
         end
@@ -56,16 +60,30 @@ module MistralTranslator
         pool.ca_path = config.ssl_ca_path if config.ssl_ca_path
       end
 
-      def build_request_body(prompt, max_tokens, temperature)
+      def configure_proxy(pool)
+        proxy_uri = Proxy.resolve(MistralTranslator.configuration.proxy, host: URI(@base_uri).host)
+        pool.proxy = proxy_uri if proxy_uri
+      end
+
+      def build_request_body(prompt, max_tokens, temperature, json: false)
         body = {
           model: @model,
-          messages: [{ role: "user", content: prompt }]
+          messages: request_messages(prompt)
         }
 
         body[:max_tokens] = max_tokens if max_tokens
         body[:temperature] = temperature if temperature
+        # L'API garantit alors un objet JSON syntaxiquement valide
+        body[:response_format] = { type: "json_object" } if json
 
         body
+      end
+
+      # Un Prompt sépare consignes et texte ; une String part en un seul message.
+      def request_messages(prompt)
+        return prompt.messages if prompt.respond_to?(:messages)
+
+        [{ role: "user", content: prompt }]
       end
 
       def headers
@@ -79,15 +97,17 @@ module MistralTranslator
 
     # Helper pour la gestion des erreurs et retry
     module ErrorHandler
-      def make_request_with_retry(prompt, max_tokens, temperature, context, attempt = 0)
+      # request_options : max_tokens, temperature, json
+      def make_request_with_retry(prompt, request_options, context, attempt = 0)
         context[:attempt] = attempt
-        response = make_request(prompt, max_tokens, temperature)
+        response = make_request(prompt, request_options[:max_tokens], request_options[:temperature],
+                                json: request_options.fetch(:json, false))
 
         # Vérifier les erreurs dans la réponse
         check_response_for_errors(response)
 
         if rate_limit_exceeded?(response)
-          handle_rate_limit(prompt, max_tokens, temperature, context, attempt)
+          handle_rate_limit(prompt, request_options, context, attempt)
         else
           response
         end
@@ -107,18 +127,13 @@ module MistralTranslator
         end
       end
 
+      # Seul le statut compte : le corps d'une réponse 200 contient le texte traduit,
+      # qui peut très bien parler de « rate limit ».
       def rate_limit_exceeded?(response)
-        return true if response.code.to_i == 429
-
-        return false unless response.code.to_i == 200
-
-        body_content = response.body.to_s
-        return false if body_content.length > 1000
-
-        body_content.match?(/rate.?limit|quota.?exceeded/i)
+        response.code.to_i == 429
       end
 
-      def handle_rate_limit(prompt, max_tokens, temperature, context, attempt)
+      def handle_rate_limit(prompt, request_options, context, attempt)
         unless attempt < @retry_delays.length
           raise RateLimitError, "API rate limit exceeded after #{@retry_delays.length} retries"
         end
@@ -135,7 +150,7 @@ module MistralTranslator
 
         log_rate_limit_retry(wait_time, attempt)
         sleep(wait_time)
-        make_request_with_retry(prompt, max_tokens, temperature, context, attempt + 1)
+        make_request_with_retry(prompt, request_options, context, attempt + 1)
       end
     end
 
@@ -153,7 +168,7 @@ module MistralTranslator
             attempt: 0
           }
 
-          result = complete(request[:prompt], context: context)
+          result = complete(request[:prompt], context: context, json: true)
           results << {
             success: true,
             result: result,
@@ -175,10 +190,13 @@ module MistralTranslator
 
     # Helper pour le logging
     module LoggingHelper
+      # Jamais le contenu des messages : seulement le modèle et les tailles
       def log_request_response(request_body, response)
-        # Log seulement si mode verbose activé
-        Logger.debug_if_verbose("Request sent to API: #{request_body.to_json}", sensitive: true)
-        Logger.debug_if_verbose("Response received: #{response.code}", sensitive: false)
+        sizes = request_body[:messages].map { |message| "#{message[:role]}=#{message[:content].to_s.length}" }
+        Logger.debug_if_verbose(
+          "Request sent to API: model=#{request_body[:model]} #{sizes.join(" ")}, response #{response.code}",
+          sensitive: false
+        )
       end
 
       def log_rate_limit_retry(wait_time, attempt)

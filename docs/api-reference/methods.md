@@ -62,8 +62,13 @@ Traduit un texte avec détection automatique de la langue source.
 - `to` (String|Symbol) - Code de langue cible
 - `context` (String, optionnel) - Contexte pour la traduction
 - `glossary` (Hash, optionnel) - Dictionnaire de termes
+- `preserve_html` (Boolean, optionnel) - Préserve les balises HTML (défaut: false)
 
-**Retour:** String - Le texte traduit
+**Retour:** String - Le texte traduit (le texte d'origine si la langue détectée est déjà la langue cible)
+
+**Exceptions:**
+
+- `InvalidResponseError` - Détection illisible ou langue non supportée : aucune langue n'est supposée
 
 **Exemple:**
 
@@ -118,8 +123,9 @@ Traduit plusieurs textes en une fois pour optimiser les performances.
 - `to` (String|Symbol) - Code de langue cible
 - `context` (String, optionnel) - Contexte commun pour tous les textes
 - `glossary` (Hash, optionnel) - Dictionnaire de termes
+- `preserve_html` (Boolean, optionnel) - Préserve les balises HTML (défaut: false)
 
-**Retour:** Hash - Hash avec les index comme clés et traductions comme valeurs
+**Retour:** Hash - Hash avec les index comme clés et traductions comme valeurs. Un élément dont la requête ou la réponse échoue vaut `nil`, sans faire échouer le lot.
 
 **Exemple:**
 
@@ -292,7 +298,7 @@ Remet la configuration aux valeurs par défaut.
 
 Retourne la liste des codes de langue supportés.
 
-**Retour:** Array<String> - Liste des codes (ex: ["fr", "en", "es"])
+**Retour:** Array<String> - Liste des 182 codes ISO 639-1 (ex: ["aa", "ab", ..., "zu"])
 
 ### `supported_languages`
 
@@ -399,7 +405,7 @@ Client HTTP pour l'API Mistral.
 
 **Méthodes d'instance:**
 
-- `complete(prompt, max_tokens: nil, temperature: nil, context: {})` - Complétion
+- `complete(prompt, max_tokens: nil, temperature: nil, context: {}, json: false)` - Complétion ; `json: true` demande un objet JSON à l'API (`response_format: json_object`), le prompt devant décrire le JSON attendu
 - `chat(prompt, max_tokens: nil, temperature: nil, context: {})` - Chat
 - `translate_batch(requests, batch_size: 5)` - Traduction par lots
 

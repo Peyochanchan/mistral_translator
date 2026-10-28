@@ -65,6 +65,13 @@ RSpec.describe MistralTranslator::Client do
           )
       end
 
+      it "requests a JSON object only when json is true" do
+        client.complete(prompt, context: context, json: true)
+
+        expect(WebMock).to(have_requested(:post, "https://api.mistral.ai/v1/chat/completions")
+          .with { |req| JSON.parse(req.body)["response_format"] == { "type" => "json_object" } })
+      end
+
       it "sends correct request body" do
         client.complete(prompt, max_tokens: 100, temperature: 0.7, context: context)
 
@@ -279,15 +286,42 @@ RSpec.describe MistralTranslator::Client do
       expect(result).to eq("Simple response without JSON")
     end
 
+    it "does not request a JSON response format" do
+      stub_mistral_api(response_body: valid_response_body)
+
+      client.chat(prompt, context: context)
+
+      expect(WebMock).to(have_requested(:post, "https://api.mistral.ai/v1/chat/completions")
+        .with { |req| !JSON.parse(req.body).key?("response_format") })
+    end
+
     it "triggers error callback for malformed JSON response" do
       stub_mistral_api(response_body: "invalid json")
 
       expect(MistralTranslator.configuration.on_translation_error)
-        .to receive(:call).with("en", "fr", anything, 0, anything)
+        .to receive(:call).with("en", "fr", an_instance_of(MistralTranslator::InvalidResponseError), 0, anything)
 
       expect { client.chat(prompt, context: context) }.to raise_error(
         MistralTranslator::InvalidResponseError,
-        /JSON parse error/
+        "Invalid JSON in API response"
+      ) { |error| expect(error.cause).to be_nil }
+    end
+
+    it "keeps the API response out of the error callback" do
+      stub_mistral_api(response_body: "Texte confidentiel")
+
+      expect(MistralTranslator.configuration.on_translation_error).to receive(:call) do |_from, _to, error, *|
+        expect(error.message).not_to include("confidentiel")
+      end
+
+      expect { client.chat(prompt, context: context) }.to raise_error(MistralTranslator::InvalidResponseError)
+    end
+
+    it "wraps an unexpected response shape" do
+      stub_mistral_api(response_body: [{ choices: [] }])
+
+      expect { client.chat(prompt, context: context) }.to raise_error(
+        MistralTranslator::InvalidResponseError, /Invalid response structure/
       )
     end
   end
@@ -383,6 +417,35 @@ RSpec.describe MistralTranslator::Client do
           temperature: 0.7
         )
       end
+
+      it "sends a Prompt as system and user messages" do
+        split_prompt = MistralTranslator::Prompt.new(instructions: "Consignes", text: "Texte")
+        body = client.send(:build_request_body, split_prompt, nil, nil)
+
+        expect(body[:messages]).to eq(split_prompt.messages)
+      end
+
+      it "requests a JSON object when json is true" do
+        body = client.send(:build_request_body, prompt, nil, nil, json: true)
+
+        expect(body[:response_format]).to eq({ type: "json_object" })
+      end
+    end
+
+    describe "#log_request_response" do
+      it "logs sizes, never the messages" do
+        split_prompt = MistralTranslator::Prompt.new(instructions: "Consignes", text: "Texte confidentiel")
+        body = client.send(:build_request_body, split_prompt, nil, nil)
+        response = instance_double(Net::HTTPResponse, code: "200")
+
+        expect(MistralTranslator::Logger).to receive(:debug_if_verbose) do |message, **|
+          expect(message).to include("model=mistral-small-latest", "system=9", "user=")
+          expect(message).not_to include("confidentiel")
+          expect(message).not_to include("Consignes")
+        end
+
+        client.send(:log_request_response, body, response)
+      end
     end
 
     describe "#headers" do
@@ -403,9 +466,9 @@ RSpec.describe MistralTranslator::Client do
         expect(client.send(:rate_limit_exceeded?, response)).to be true
       end
 
-      it "detects rate limit by message content" do
-        response = double(code: "200", body: "rate limit exceeded")
-        expect(client.send(:rate_limit_exceeded?, response)).to be true
+      it "ignores a 200 response that talks about rate limits" do
+        response = double(code: "200", body: '{"content": {"target": "Rate limit exceeded"}}')
+        expect(client.send(:rate_limit_exceeded?, response)).to be false
       end
 
       it "returns false for normal responses" do
@@ -479,6 +542,27 @@ RSpec.describe MistralTranslator::Client do
         pool1 = client.send(:http_pool)
         pool2 = client.send(:http_pool)
         expect(pool1).to be(pool2)
+      end
+
+      it "wraps an unreachable proxy or API in ApiError" do
+        allow(client.send(:http_pool)).to receive(:request)
+          .and_raise(Net::HTTP::Persistent::Error, "connection refused: user:secret@proxy:3128")
+
+        expect { client.chat("Hello") }.to raise_error(MistralTranslator::ApiError) { |error|
+          expect(error.message).not_to include("secret")
+          expect(error.cause).to be_nil
+        }
+      end
+
+      it "uses no proxy by default" do
+        expect(client.send(:http_pool).proxy_uri).to be_nil
+      end
+
+      it "routes requests through the configured proxy" do
+        MistralTranslator.configure { |c| c.proxy = "http://proxy.example:3128" }
+        client.instance_variable_set(:@http_pool, nil)
+
+        expect(client.send(:http_pool).proxy_uri.to_s).to eq("http://proxy.example:3128")
       end
     end
 

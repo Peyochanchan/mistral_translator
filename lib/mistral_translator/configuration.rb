@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
+require_relative "proxy"
+
 module MistralTranslator
   class Configuration
     attr_accessor :api_key, :model, :default_max_tokens, :default_temperature, :retry_delays,
                   :on_translation_start, :on_translation_complete, :on_translation_error,
                   :on_rate_limit, :on_batch_complete, :enable_metrics,
                   :ssl_verify_mode, :ssl_ca_file, :ssl_ca_path, :ssl_timeout
-    attr_reader :api_url
+    attr_reader :api_url, :proxy
 
     def initialize
       @api_key = nil
@@ -29,6 +31,9 @@ module MistralTranslator
       @ssl_ca_file = nil        # Path to CA certificate file
       @ssl_ca_path = nil        # Path to CA certificates directory
       @ssl_timeout = 60         # SSL handshake timeout in seconds
+
+      # Proxy : nil (aucun), URI ou String, ou :env (HTTPS_PROXY, HTTP_PROXY, NO_PROXY)
+      @proxy = nil
 
       # Métriques intégrées (thread-safe avec mutex)
       @metrics_mutex = Mutex.new
@@ -54,6 +59,11 @@ module MistralTranslator
     def api_url=(url)
       validate_api_url(url)
       @api_url = url
+    end
+
+    def proxy=(value)
+      Proxy.validate!(value)
+      @proxy = value
     end
 
     # Méthodes pour les callbacks

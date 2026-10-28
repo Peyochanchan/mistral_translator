@@ -208,6 +208,21 @@ RSpec.describe MistralTranslator::Helpers do
       described_class.smart_summarize(short_text, max_words: 100, target_language: "fr")
     end
 
+    it "reaches the summarizer with its style and context" do
+      allow(MistralTranslator).to receive(:summarize).and_call_original
+      summarizer = instance_double(MistralTranslator::Summarizer)
+      allow(MistralTranslator::Summarizer).to receive(:new).and_return(summarizer)
+      MistralTranslator.reset_configuration!
+      MistralTranslator.configure { |c| c.api_key = "test_api_key" }
+
+      expect(summarizer).to receive(:summarize)
+        .with("Texte", language: "fr", max_words: anything, style: "formal", context: "blog")
+        .and_return("Résumé")
+
+      result = described_class.smart_summarize("Texte", style: "formal", context: "blog")
+      expect(result[:summary]).to eq("Résumé")
+    end
+
     it "strips HTML for analysis" do
       html_text = "<div><p>Content with <strong>tags</strong></p></div>"
 
@@ -293,6 +308,20 @@ RSpec.describe MistralTranslator::Helpers do
     it "limits suggestions to 3" do
       suggestions = described_class.send(:find_locale_suggestions, "x")
       expect(suggestions.length).to be <= 3
+    end
+
+    it "suggests from a language name, even misspelled" do
+      expect(described_class.send(:find_locale_suggestions, "allemand")).to eq(["de"])
+      expect(described_class.send(:find_locale_suggestions, "espagnl")).to eq(["es"])
+    end
+
+    it "suggests from a three-letter code" do
+      expect(described_class.send(:find_locale_suggestions, "deu")).to eq(["de"])
+    end
+
+    it "suggests nothing for an unrelated word or code" do
+      expect(described_class.send(:find_locale_suggestions, "klingon")).to be_empty
+      expect(described_class.send(:find_locale_suggestions, "xx")).to be_empty
     end
   end
 

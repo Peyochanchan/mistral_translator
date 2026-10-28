@@ -22,7 +22,9 @@ module MistralTranslator
       @rate_limiter = rate_limiter || Security::BasicRateLimiter.new
     end
 
-    def complete(prompt, max_tokens: nil, temperature: nil, context: {})
+    # json: true demande un objet JSON à l'API (response_format json_object) ;
+    # le prompt doit alors décrire le JSON attendu.
+    def complete(prompt, max_tokens: nil, temperature: nil, context: {}, json: false)
       # Vérifier le rate limit avant de faire la requête
       @rate_limiter.wait_and_record!
 
@@ -30,14 +32,15 @@ module MistralTranslator
       start_time = Time.now
       trigger_translation_start_callback(ctx, prompt)
 
-      response = make_request_with_retry(prompt, max_tokens, temperature, ctx)
+      request_options = { max_tokens: max_tokens, temperature: temperature, json: json }
+      response = make_request_with_retry(prompt, request_options, ctx)
       content = extract_content_from_response(response)
 
       trigger_translation_complete_callback(ctx, prompt, content, start_time)
       content
     rescue JSON::ParserError => e
       handle_json_parse_error(e, ctx)
-    rescue NoMethodError => e
+    rescue NoMethodError, TypeError => e
       handle_response_structure_error(e, ctx)
     end
 
@@ -49,14 +52,14 @@ module MistralTranslator
       start_time = Time.now
       trigger_translation_start_callback(ctx, prompt)
 
-      response = make_request_with_retry(prompt, max_tokens, temperature, ctx)
+      response = make_request_with_retry(prompt, { max_tokens: max_tokens, temperature: temperature }, ctx)
       content = extract_chat_content_from_response(response)
 
       trigger_translation_complete_callback(ctx, prompt, content, start_time)
       content
     rescue JSON::ParserError => e
       handle_json_parse_error(e, ctx)
-    rescue NoMethodError => e
+    rescue NoMethodError, TypeError => e
       handle_response_structure_error(e, ctx)
     end
 
@@ -122,29 +125,25 @@ module MistralTranslator
       )
     end
 
-    def handle_json_parse_error(error, context)
-      MistralTranslator.configuration.trigger_translation_error(
-        context[:from_locale],
-        context[:to_locale],
-        error,
-        context[:attempt] || 0
-      )
-      message = if context[:operation] == :chat
-                  "JSON parse error: #{error.message}"
-                else
-                  "Invalid JSON in API response: #{error.message}"
-                end
-      raise InvalidResponseError, message
+    # Le message de JSON::ParserError, NoMethodError ou TypeError cite la réponse de l'API :
+    # ni lui ni l'erreur d'origine (cause) ne sont repris, et le callback reçoit l'erreur nettoyée.
+    def handle_json_parse_error(_error, context)
+      raise_invalid_response("Invalid JSON in API response", context)
     end
 
     def handle_response_structure_error(error, context)
+      raise_invalid_response("Invalid response structure (#{error.class})", context)
+    end
+
+    def raise_invalid_response(message, context)
+      error = InvalidResponseError.new(message)
       MistralTranslator.configuration.trigger_translation_error(
         context[:from_locale],
         context[:to_locale],
         error,
         context[:attempt] || 0
       )
-      raise InvalidResponseError, "Invalid response structure: #{error.message}"
+      raise error, cause: nil
     end
   end
 end

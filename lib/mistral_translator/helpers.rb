@@ -229,25 +229,28 @@ module MistralTranslator
         end
       end
 
+      # Avec 182 codes de deux lettres, presque toute chaîne est « proche » d'un code :
+      # on suggère à partir d'un nom de langue (exact ou mal orthographié) ou d'un code
+      # à trois lettres (ISO 639-2 comme "fre", ou faute de frappe comme "enn").
       def find_locale_suggestions(invalid_locale)
         return [] unless invalid_locale.is_a?(String)
 
-        supported = LocaleHelper.supported_locales.map(&:to_s)
+        input = invalid_locale.strip.downcase
+        named = LocaleHelper.language_to_locale(input)
+        return [named] if LocaleHelper.locale_supported?(named)
 
-        # Recherche par similarité basique
-        suggestions = supported.select do |locale|
-          locale.start_with?(invalid_locale.downcase) ||
-            invalid_locale.downcase.start_with?(locale)
-        end
+        by_code = input.length == 3 ? LocaleHelper.supported_locales.select { |code| input.start_with?(code) } : []
+        by_name = LocaleHelper::LANGUAGES.select do |_code, names|
+          names.values.any? { |name| close_language_name?(input, name.downcase) }
+        end.keys
 
-        # Si pas de suggestions par préfixe, chercher par distance
-        if suggestions.empty?
-          suggestions = supported.select do |locale|
-            LevenshteinHelpers.levenshtein_distance(invalid_locale.downcase, locale) <= 2
-          end
-        end
+        (by_code + by_name).uniq.first(3)
+      end
 
-        suggestions.first(3) # Limiter à 3 suggestions
+      def close_language_name?(input, name)
+        return false if name.length < 4
+
+        LevenshteinHelpers.levenshtein_distance(input, name) <= (name.length >= 8 ? 2 : 1)
       end
 
       # Exposer la distance de Levenshtein en privé via délégation pour les tests

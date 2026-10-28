@@ -212,14 +212,14 @@ RSpec.describe MistralTranslator do
     end
 
     it "returns ok status for successful API call" do
-      allow(mock_client).to receive(:complete).with("Hello", max_tokens: 10, context: {}).and_return("test response")
+      allow(mock_client).to receive(:chat).with("Hello", max_tokens: 10).and_return("test response")
 
       result = described_class.health_check
       expect(result).to eq({ status: :ok, message: "API connection successful" })
     end
 
     it "returns error status for authentication failure" do
-      allow(mock_client).to receive(:complete)
+      allow(mock_client).to receive(:chat)
         .and_raise(MistralTranslator::AuthenticationError, "Invalid key")
 
       result = described_class.health_check
@@ -227,7 +227,7 @@ RSpec.describe MistralTranslator do
     end
 
     it "returns error status for API errors" do
-      allow(mock_client).to receive(:complete)
+      allow(mock_client).to receive(:chat)
         .and_raise(MistralTranslator::ApiError, "Server error")
 
       result = described_class.health_check
@@ -235,15 +235,15 @@ RSpec.describe MistralTranslator do
     end
 
     it "returns error status for unexpected errors" do
-      allow(mock_client).to receive(:complete).and_raise(StandardError, "Unexpected")
+      allow(mock_client).to receive(:chat).and_raise(StandardError, "Unexpected")
 
       result = described_class.health_check
       expect(result).to eq({ status: :error, message: "Unexpected error: Unexpected" })
     end
 
-    # Nouveau test pour vérifier que le contexte est passé
-    it "passes empty context to client.complete" do
-      expect(mock_client).to receive(:complete).with("Hello", max_tokens: 10, context: {})
+    # Le health check n'attend pas de JSON : il passe par chat, sans response_format
+    it "uses client.chat" do
+      expect(mock_client).to receive(:chat).with("Hello", max_tokens: 10)
       described_class.health_check
     end
   end
@@ -408,7 +408,7 @@ RSpec.describe "MistralTranslator Integration" do
       response = { content: { target: "Bonjour" } }.to_json
 
       # Mock le client pour appeler les callbacks comme dans la vraie vie
-      expect(mock_client).to receive(:complete) do |prompt, context:|
+      expect(mock_client).to receive(:complete) do |prompt, context:, **|
         # Simuler l'appel des callbacks comme dans Client#complete
         Time.now
 
@@ -454,7 +454,7 @@ RSpec.describe "MistralTranslator Integration" do
       response = { content: { target: "Bonjour" } }.to_json
 
       # Mock le client pour appeler les callbacks de métriques
-      expect(mock_client).to receive(:complete) do |prompt, context:|
+      expect(mock_client).to receive(:complete) do |prompt, context:, **|
         # Simuler l'appel des callbacks de métriques comme dans Client#complete
         MistralTranslator.configuration.trigger_translation_start(
           context[:from_locale],

@@ -15,7 +15,7 @@ module MistralTranslator
     end
 
     # Résumé simple dans une langue donnée
-    def summarize(text, language: "fr", max_words: DEFAULT_MAX_WORDS)
+    def summarize(text, language: "fr", max_words: DEFAULT_MAX_WORDS, context: nil, style: nil)
       log_debug("Starting summarize - language: #{language}, max_words: #{max_words}")
 
       # Validation basique des entrées
@@ -26,18 +26,14 @@ module MistralTranslator
       return "" if validated_text.empty?
 
       target_locale = LocaleHelper.validate_locale!(language)
-      log_debug("Target locale validated: #{target_locale}")
-
       cleaned_text = clean_document_content(validated_text)
-      log_debug("Text cleaned, length: #{cleaned_text&.length}")
 
-      result = summarize_with_retry(cleaned_text, target_locale, max_words)
-      log_debug("Summary completed successfully")
-      result
+      prompt = PromptBuilder.summary_prompt(cleaned_text, max_words, target_locale, context: context, style: style)
+      request_summary(prompt, target_locale)
     end
 
     # Résumé avec traduction simultanée
-    def summarize_and_translate(text, from:, to:, max_words: DEFAULT_MAX_WORDS)
+    def summarize_and_translate(text, from:, to:, max_words: DEFAULT_MAX_WORDS, context: nil, style: nil) # rubocop:disable Metrics/ParameterLists
       log_debug("Starting summarize_and_translate - from: #{from}, to: #{to}")
       validate_summarize_translate_inputs!(text, from, to, max_words)
 
@@ -47,143 +43,69 @@ module MistralTranslator
 
       # Si même langue, juste résumer
       if source_locale == target_locale
-        log_debug("Same language detected, using simple summarize")
-        return summarize(cleaned_text, language: target_locale, max_words: max_words)
+        return summarize(cleaned_text, language: target_locale, max_words: max_words, context: context, style: style)
       end
 
-      # Sinon, créer un prompt qui fait les deux à la fois
-      log_debug("Different languages, using combined summarize+translate")
-      prompt = build_summary_translation_prompt(cleaned_text, source_locale, target_locale, max_words)
-      raw_response = @client.complete(prompt)
-
-      result = ResponseParser.parse_summary_response(raw_response)
-      if result.nil? || result[:summary].nil? || result[:summary].empty?
-        # Fallback: si le JSON est manquant ou vide, on tente un résumé simple puis traduction
-        log_error(
-          "Empty or invalid summary response for summarize_and_translate. Using fallback. " \
-          "Raw length: #{raw_response.to_s.length}"
-        )
-        summary_only = summarize(cleaned_text, language: source_locale, max_words: max_words)
-        begin
-          return MistralTranslator.translate(summary_only, from: source_locale, to: target_locale)
-        rescue EmptyTranslationError, InvalidResponseError, RateLimitError => e
-          log_error("Translation fallback failed: #{e.class.name} - returning source summary")
-          return summary_only
-        end
-      end
-
-      result[:summary]
+      prompt = PromptBuilder.summary_and_translation_prompt(cleaned_text, source_locale, target_locale, max_words,
+                                                            context: context, style: style)
+      request_summary(prompt, target_locale)
     end
 
     # Résumé en plusieurs langues
-    def summarize_to_multiple(text, languages:, max_words: DEFAULT_MAX_WORDS)
+    def summarize_to_multiple(text, languages:, max_words: DEFAULT_MAX_WORDS, context: nil, style: nil)
       log_debug("Starting summarize_to_multiple - languages: #{languages}")
       validate_multiple_summarize_inputs!(text, languages, max_words)
 
       target_locales = Array(languages).map { |locale| LocaleHelper.validate_locale!(locale) }
       cleaned_text = clean_document_content(text)
-      results = {}
 
-      target_locales.each_with_index do |target_locale, index|
-        log_debug("Processing language #{index + 1}/#{target_locales.length}: #{target_locale}")
-
+      target_locales.each_with_index.to_h do |target_locale, index|
         # Ajouter un délai seulement entre les requêtes (pas avant la première)
-        if index.positive?
-          log_debug("Adding delay between requests: #{DEFAULT_RETRY_DELAY}s")
-          sleep(DEFAULT_RETRY_DELAY)
-        end
+        sleep(DEFAULT_RETRY_DELAY) if index.positive?
 
-        results[target_locale] = summarize_with_retry(cleaned_text, target_locale, max_words)
+        prompt = PromptBuilder.summary_prompt(cleaned_text, max_words, target_locale, context: context, style: style)
+        [target_locale, request_summary(prompt, target_locale)]
       end
-
-      log_debug("Multiple summarization completed")
-      results
     end
 
     # Résumé par niveaux (court, moyen, long)
-    def summarize_tiered(text, language: "fr", short: 50, medium: 150, long: 300)
+    def summarize_tiered(text, language: "fr", short: 50, medium: 150, long: 300, context: nil, style: nil) # rubocop:disable Metrics/ParameterLists
       log_debug("Starting summarize_tiered - short: #{short}, medium: #{medium}, long: #{long}")
       validate_tiered_inputs!(text, language, short, medium, long)
 
       target_locale = LocaleHelper.validate_locale!(language)
       cleaned_text = clean_document_content(text)
 
-      {
-        short: summarize_with_retry(cleaned_text, target_locale, short),
-        medium: summarize_with_retry(cleaned_text, target_locale, medium),
-        long: summarize_with_retry(cleaned_text, target_locale, long)
-      }
+      { short: short, medium: medium, long: long }.transform_values do |max_words|
+        prompt = PromptBuilder.summary_prompt(cleaned_text, max_words, target_locale, context: context, style: style)
+        request_summary(prompt, target_locale)
+      end
     end
 
     private
 
-    # rubocop:disable Metrics/PerceivedComplexity
-    def summarize_with_retry(text, target_locale, max_words, attempt = 0)
-      log_debug("Summarize attempt #{attempt + 1} for #{target_locale}")
+    # Relances communes à tous les résumés ; une réponse inexploitable finit par lever une erreur.
+    def request_summary(prompt, target_locale, attempt = 0)
+      log_debug("Summary attempt #{attempt + 1} for #{target_locale}")
 
-      prompt = PromptBuilder.summary_prompt(text, max_words, target_locale)
-      raw_response = @client.complete(prompt)
-      response_len = raw_response&.length || 0
+      result = ResponseParser.parse_summary_response(@client.complete(prompt, json: true))
+      raise EmptyTranslationError, "Empty summary received" if result.nil? || result[:summary].to_s.empty?
 
-      result = ResponseParser.parse_summary_response(raw_response)
-      if result.nil? || result[:summary].nil? || result[:summary].empty?
-        log_error(
-          "Empty or invalid summary response for #{target_locale}. " \
-          "Raw response length: #{response_len}"
-        )
-        raise EmptyTranslationError, "Empty summary received"
-      end
-
-      log_debug("Summary successful for #{target_locale}")
       result[:summary]
     rescue EmptyTranslationError, InvalidResponseError => e
-      if attempt < DEFAULT_RETRY_COUNT
-        wait_time = DEFAULT_RETRY_DELAY * (2**attempt)
-        log_retry(e, attempt + 1, wait_time, target_locale)
-        sleep(wait_time)
-        summarize_with_retry(text, target_locale, max_words, attempt + 1)
-      else
-        log_debug("Max retries reached for #{target_locale}, giving up")
-        raise e
-      end
+      raise if attempt >= DEFAULT_RETRY_COUNT
+
+      wait_time = DEFAULT_RETRY_DELAY * (2**attempt)
+      log_retry(e, attempt + 1, wait_time, target_locale)
+      sleep(wait_time)
+      request_summary(prompt, target_locale, attempt + 1)
     rescue RateLimitError
       # Le client a déjà relancé avec backoff : quelques tentatives de plus suffisent.
       raise if attempt >= DEFAULT_RETRY_COUNT
 
       log_rate_limit_hit("summary", target_locale)
       sleep(DEFAULT_RETRY_DELAY)
-      summarize_with_retry(text, target_locale, max_words, attempt + 1)
-    end
-    # rubocop:enable Metrics/PerceivedComplexity
-
-    def build_summary_translation_prompt(text, source_locale, target_locale, max_words)
-      source_name = LocaleHelper.locale_to_language(source_locale)
-      target_name = LocaleHelper.locale_to_language(target_locale)
-
-      <<~PROMPT
-        Tu es un assistant spécialisé dans la création de résumés et traductions simultanées.#{" "}
-        Résume ET traduis le texte suivant en respectant ces règles strictes :
-        1. Langue source : #{source_name} (#{source_locale})
-        2. Langue cible : #{target_name} (#{target_locale})
-        3. Longueur maximale : #{max_words} mots
-        4. Créer un résumé du texte ET le traduire vers la langue cible
-        5. Format de réponse obligatoire en JSON :
-        {
-          "content": {
-            "source": "texte original",
-            "target": "résumé traduit en #{target_name}"
-          },
-          "metadata": {
-            "source_language": "#{source_locale}",
-            "target_language": "#{target_locale}",
-            "max_words": #{max_words},
-            "operation": "summarize_and_translate"
-          }
-        }
-
-        Texte à résumer et traduire :
-        #{text}
-      PROMPT
+      request_summary(prompt, target_locale, attempt + 1)
     end
 
     def clean_document_content(content)
@@ -211,6 +133,8 @@ module MistralTranslator
 
     def validate_summarize_inputs!(text, language, max_words)
       raise ArgumentError, "Text cannot be nil or empty" if text.nil? || text.empty?
+
+      Security::BasicValidator.validate_text!(text)
       raise ArgumentError, "Language cannot be nil" if language.nil?
       raise ArgumentError, "Max words must be a positive integer" unless max_words.is_a?(Integer) && max_words.positive?
     end

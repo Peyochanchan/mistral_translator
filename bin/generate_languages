@@ -1,0 +1,43 @@
+#!/usr/bin/env swift
+// Regenerates lib/mistral_translator/data/languages.json from CLDR, as shipped
+// with macOS Foundation: every ISO 639-1 code with its French name (used in
+// prompts), English name (accepted as an alias) and native name.
+//
+// Usage (macOS only): bin/generate_languages
+
+import Foundation
+
+let french = Locale(identifier: "fr")
+let english = Locale(identifier: "en")
+// Codes CLDR still lists but has replaced (iw → he, in → id, ji → yi, mo → ro)
+let deprecated: Set<String> = ["iw", "in", "ji", "mo", "sh"]
+
+let available = Set(Locale.availableIdentifiers)
+var languages: [String: [String: String]] = [:]
+
+for code in Locale.LanguageCode.isoLanguageCodes.map(\.identifier) {
+  guard code.count == 2, !deprecated.contains(code) else { continue }
+  guard let frenchName = french.localizedString(forLanguageCode: code), frenchName != code,
+        let englishName = english.localizedString(forLanguageCode: code), englishName != code
+  else { continue }
+
+  // Without CLDR data for the language itself, Foundation answers in the system
+  // language: fall back to the English name instead.
+  let nativeName = available.contains(code)
+    ? Locale(identifier: code).localizedString(forLanguageCode: code) ?? englishName
+    : englishName
+  languages[code] = ["fr": frenchName, "en": englishName, "native": nativeName]
+}
+
+let encoder = JSONEncoder()
+encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+let data = try encoder.encode(languages)
+
+let output = URL(fileURLWithPath: CommandLine.arguments[0])
+  .deletingLastPathComponent()
+  .appendingPathComponent("../lib/mistral_translator/data/languages.json")
+  .standardizedFileURL
+try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
+try (String(decoding: data, as: UTF8.self) + "\n").write(to: output, atomically: true, encoding: .utf8)
+
+print("\(languages.count) languages written to \(output.path)")

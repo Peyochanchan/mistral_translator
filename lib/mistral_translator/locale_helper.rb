@@ -1,43 +1,31 @@
 # frozen_string_literal: true
 
+require "json"
+
 module MistralTranslator
   module LocaleHelper
-    SUPPORTED_LANGUAGES = {
-      "fr" => "français",
-      "en" => "english",
-      "es" => "español",
-      "pt" => "português",
-      "de" => "deutsch",
-      "it" => "italiano",
-      "nl" => "nederlands",
-      "ru" => "русский",
-      "mg" => "malagasy",
-      "ja" => "日本語",
-      "ko" => "한국어",
-      "zh" => "中文",
-      "ar" => "العربية"
-    }.freeze
+    # Codes ISO 639-1 et noms issus de CLDR, générés par bin/generate_languages
+    LANGUAGES = JSON.parse(File.read(File.expand_path("data/languages.json", __dir__)), freeze: true)
 
-    # Mapping des noms alternatifs vers les codes de langue
-    LANGUAGE_ALIASES = {
-      "french" => "fr",
-      "german" => "de",
-      "spanish" => "es",
-      "portuguese" => "pt",
-      "italian" => "it",
-      "dutch" => "nl",
-      "russian" => "ru",
-      "malagasy" => "mg",
-      "japanese" => "ja",
-      "korean" => "ko",
-      "chinese" => "zh",
-      "arabic" => "ar"
-    }.freeze
+    # Nom de chaque langue dans sa propre langue
+    SUPPORTED_LANGUAGES = LANGUAGES.transform_values { |names| names["native"].downcase }.freeze
+
+    # Noms anglais et français acceptés à la place du code
+    LANGUAGE_ALIASES = LANGUAGES.flat_map do |code, names|
+      [[names["en"].downcase, code], [names["fr"].downcase, code]]
+    end.to_h.freeze
 
     class << self
       def locale_to_language(locale)
         locale_code = normalize_locale(locale)
         SUPPORTED_LANGUAGES[locale_code] || locale_code.to_s
+      end
+
+      # Nom français suivi du code, pour les prompts : « anglais (en) »
+      def prompt_language_name(locale)
+        locale_code = normalize_locale(locale)
+        name = LANGUAGES.dig(locale_code, "fr")
+        name ? "#{name} (#{locale_code})" : locale_code
       end
 
       def language_to_locale(language)

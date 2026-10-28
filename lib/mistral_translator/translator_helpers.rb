@@ -91,34 +91,6 @@ module MistralTranslator
       end
     end
 
-    # Helper pour la gestion des prompts
-    module PromptHandler
-      def enrich_prompt_with_context(base_prompt, context, glossary)
-        context_section = build_context_section(context, glossary)
-        base_prompt + context_section
-      end
-
-      def build_context_section(context, glossary)
-        context_section = ""
-        context_section += add_context_text(context) if context && !context.to_s.strip.empty?
-        context_section += add_glossary_text(glossary) if glossary && !glossary.to_s.strip.empty?
-        context_section
-      end
-
-      def add_context_text(context)
-        "\nCONTEXTE : #{context}\n"
-      end
-
-      def add_glossary_text(glossary)
-        if glossary.is_a?(Hash) && glossary.any?
-          glossary_text = glossary.map { |key, value| "#{key} → #{value}" }.join(", ")
-          "\nGLOSSAIRE (à respecter strictement) : #{glossary_text}\n"
-        else
-          "\nGLOSSAIRE : #{glossary}\n"
-        end
-      end
-    end
-
     # Helper pour l'analyse et la détection de langue
     module AnalysisHelper
       def calculate_confidence_score(original, translated, from_locale, to_locale)
@@ -152,16 +124,17 @@ module MistralTranslator
         PromptBuilder.language_detection_prompt(text)
       end
 
+      # Fail-closed : une détection illisible ou une langue non supportée lève une erreur,
+      # au lieu de supposer une langue et de renvoyer le texte non traduit.
       def parse_language_detection(response)
-        json_content = response.match(/\{.*\}/m)&.[](0)
-        return "en" unless json_content
+        data = JSON.parse(response.to_s)
+        metadata = data["metadata"] if data.is_a?(Hash)
+        detected = LocaleHelper.normalize_locale(metadata["detected_language"]) if metadata.is_a?(Hash)
+        return detected if detected && LocaleHelper.locale_supported?(detected)
 
-        data = JSON.parse(json_content)
-        detected = data.dig("metadata", "detected_language")
-
-        LocaleHelper.locale_supported?(detected) ? detected : "en"
+        raise InvalidResponseError.new("Language detection failed", response)
       rescue JSON::ParserError
-        "en"
+        raise InvalidResponseError.new("Language detection failed", response), cause: nil
       end
     end
 
@@ -187,31 +160,13 @@ module MistralTranslator
       end
 
       def perform_client_request(prompt, request_context)
-        if @client.respond_to?(:complete)
-          begin
-            return @client.complete(prompt, context: request_context)
-          rescue StandardError => e
-            raise e unless e.class.name.include?("MockExpectationError") && @client.respond_to?(:make_request)
-
-            return @client.make_request(prompt, nil, nil)
-          end
-        end
-
-        return @client.make_request(prompt, nil, nil) if @client.respond_to?(:make_request)
-
-        @client.complete(prompt, context: request_context)
+        @client.complete(prompt, context: request_context, json: true)
       end
 
+      # Une réponse inexploitable lève une erreur : jamais de réponse brute enregistrée comme traduction.
       def extract_translated_text!(raw_response)
-        begin
-          result = ResponseParser.parse_translation_response(raw_response)
-          return result[:translated] if result && !result[:translated].to_s.empty?
-        rescue EmptyTranslationError, InvalidResponseError
-          # Fallback: accepter une réponse texte brute non vide
-          fallback_text = raw_response.to_s.strip
-          return fallback_text unless fallback_text.empty?
-          # sinon on relance l'erreur plus bas
-        end
+        result = ResponseParser.parse_translation_response(raw_response)
+        return result[:translated] if result && !result[:translated].to_s.empty?
 
         raise EmptyTranslationError
       end
@@ -248,12 +203,18 @@ module MistralTranslator
         batch_results.each do |result|
           next unless result[:success]
 
-          target_locale = result[:original_request][:to]
-          parsed_result = ResponseParser.parse_translation_response(result[:result])
-          results[target_locale] = parsed_result[:translated] if parsed_result
+          translated = parse_batch_translation(result[:result])
+          results[result[:original_request][:to]] = translated if translated
         end
 
         results
+      end
+
+      # Une réponse illisible fait échouer sa langue, pas tout le lot
+      def parse_batch_translation(response)
+        ResponseParser.parse_translation_response(response)&.fetch(:translated)
+      rescue EmptyTranslationError, InvalidResponseError
+        nil
       end
 
       def translate_to_multiple_sequential(text, source_locale, target_locales, **options)

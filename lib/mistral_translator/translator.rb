@@ -9,7 +9,6 @@ module MistralTranslator
     include TranslatorHelpers::InputValidator
     include TranslatorHelpers::RetryHandler
     include TranslatorHelpers::LoggingHelper
-    include TranslatorHelpers::PromptHandler
     include TranslatorHelpers::AnalysisHelper
     include TranslatorHelpers::RequestHelper
     include TranslatorHelpers::MultiTargetHelper
@@ -67,6 +66,7 @@ module MistralTranslator
     # Traduction vers plusieurs langues avec support du batch
     def translate_to_multiple(text, from:, to:, **options)
       validate_translation_inputs!(text, from, to)
+      Security::BasicValidator.validate_text!(text)
 
       source_locale = LocaleHelper.validate_locale!(from)
       target_locales = Array(to).map { |locale| LocaleHelper.validate_locale!(locale) }
@@ -82,33 +82,33 @@ module MistralTranslator
     end
 
     # Traduction en lot (plusieurs textes vers une langue)
-    def translate_batch(texts, from:, to:, context: nil, glossary: nil)
+    def translate_batch(texts, from:, to:, context: nil, glossary: nil, preserve_html: false) # rubocop:disable Metrics/ParameterLists
       validated_texts = Security::BasicValidator.validate_batch!(texts)
       source_locale = LocaleHelper.validate_locale!(from)
       target_locale = LocaleHelper.validate_locale!(to)
 
       return handle_same_language_batch(validated_texts) if source_locale == target_locale
 
-      process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
+      batch_config = { source_locale: source_locale, target_locale: target_locale, context: context,
+                       glossary: glossary, preserve_html: preserve_html }
+      process_mixed_batch(validated_texts, batch_config)
     end
 
     # Auto-détection de la langue source avec support du contexte
-    def translate_auto(text, to:, context: nil, glossary: nil)
+    def translate_auto(text, to:, context: nil, glossary: nil, preserve_html: false)
+      validated_text = Security::BasicValidator.validate_text!(text)
+      return "" if validated_text.empty?
+
       target_locale = LocaleHelper.validate_locale!(to)
 
-      # Premier appel pour détecter la langue
-      detection_prompt = build_language_detection_prompt(text)
-      detection_response = @client.complete(detection_prompt)
+      # Premier appel pour détecter la langue ; un échec lève une erreur
+      detection_response = @client.complete(build_language_detection_prompt(validated_text), json: true)
       detected_language = parse_language_detection(detection_response)
-
-      # Vérifier que la langue détectée est différente de la cible
-      if detected_language == target_locale
-        # Si même langue, retourner le texte original
-        return text
-      end
+      return validated_text if detected_language == target_locale
 
       # Puis traduction normale avec contexte
-      translate(text, from: detected_language, to: target_locale, context: context, glossary: glossary)
+      translate(validated_text, from: detected_language, to: target_locale, context: context, glossary: glossary,
+                                preserve_html: preserve_html)
     end
 
     private
@@ -119,10 +119,8 @@ module MistralTranslator
       validated_texts.each_with_index.to_h { |text, index| [index, text] }
     end
 
-    def process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
+    def process_mixed_batch(validated_texts, batch_config)
       results = {}
-      batch_config = { source_locale: source_locale, target_locale: target_locale, context: context,
-                       glossary: glossary }
       requests = build_batch_requests(validated_texts, batch_config, results)
 
       process_batch_requests(requests, results) if requests.any?
@@ -147,7 +145,8 @@ module MistralTranslator
     def create_batch_request(text, batch_config, index)
       {
         prompt: build_translation_prompt(text, batch_config[:source_locale], batch_config[:target_locale],
-                                         context: batch_config[:context], glossary: batch_config[:glossary]),
+                                         context: batch_config[:context], glossary: batch_config[:glossary],
+                                         preserve_html: batch_config[:preserve_html]),
         from: batch_config[:source_locale],
         to: batch_config[:target_locale],
         index: index,
@@ -172,6 +171,9 @@ module MistralTranslator
       parsed_result[:translated] if parsed_result
     rescue EmptyTranslationError
       ""
+    rescue InvalidResponseError
+      # Une réponse illisible fait échouer son élément, pas tout le lot
+      nil
     end
 
     def translate_with_retry(text, source_locale, target_locale, attempt = 0, **options)
@@ -198,60 +200,10 @@ module MistralTranslator
     # Log via LoggingHelper
 
     def build_translation_prompt(text, source_locale, target_locale, **options)
-      base_prompt = PromptBuilder.translation_prompt(text, source_locale, target_locale,
-                                                     preserve_html: options.fetch(:preserve_html, false))
-
-      # Enrichir le prompt avec le contexte et le glossaire
-      context_present = options[:context] && !options[:context].to_s.strip.empty?
-      glossary_present =
-        (options[:glossary].is_a?(Hash) && options[:glossary].any?) ||
-        (options[:glossary].is_a?(String) && !options[:glossary].to_s.strip.empty?)
-      if context_present || glossary_present
-        enrich_prompt_with_context(base_prompt, options[:context], options[:glossary])
-      else
-        base_prompt
-      end
-    end
-
-    def enrich_prompt_with_context(base_prompt, context, glossary)
-      enriched_parts = []
-      context_part = build_context_enrichment(context)
-      glossary_part = build_glossary_enrichment(glossary)
-      enriched_parts << context_part if context_part
-      enriched_parts << glossary_part if glossary_part
-
-      return base_prompt if enriched_parts.empty?
-
-      enriched_context = enriched_parts.join("\n")
-      base_prompt.sub("RÈGLES :", "#{enriched_context}\n\nRÈGLES :")
-    end
-
-    def build_context_enrichment(context)
-      return nil if context.nil? || context.to_s.strip.empty?
-
-      "CONTEXTE : #{context}"
-    end
-
-    def build_glossary_enrichment(glossary)
-      return nil if glossary.nil?
-      return build_glossary_hash(glossary) if glossary.is_a?(Hash)
-      return build_glossary_string(glossary) if glossary.is_a?(String)
-
-      nil
-    end
-
-    def build_glossary_hash(glossary_hash)
-      return nil if glossary_hash.empty?
-
-      glossary_text = glossary_hash.map { |key, value| "#{key} → #{value}" }.join(", ")
-      "GLOSSAIRE (à respecter strictement) : #{glossary_text}"
-    end
-
-    def build_glossary_string(glossary_string)
-      value = glossary_string.to_s.strip
-      return nil if value.empty?
-
-      "GLOSSAIRE : #{value}"
+      PromptBuilder.translation_prompt(text, source_locale, target_locale,
+                                       context: options[:context],
+                                       glossary: options[:glossary],
+                                       preserve_html: options.fetch(:preserve_html, false))
     end
   end
 end

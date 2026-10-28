@@ -17,8 +17,25 @@ MistralTranslator.configure do |config|
   config.default_temperature = 0.3               # Créativité (0-1)
   config.retry_delays = [2, 4, 8, 16, 32]       # Délais retry (secondes)
   config.enable_metrics = false                  # Suivi des stats
+  config.proxy = nil                             # Proxy HTTP (désactivé par défaut)
 end
 ```
+
+## Proxy
+
+Désactivé par défaut. Trois valeurs possibles :
+
+```ruby
+config.proxy = nil                                  # Aucun proxy (défaut)
+config.proxy = "http://user:password@proxy:3128"    # Ce proxy (String ou URI)
+config.proxy = :env                                 # HTTPS_PROXY, puis HTTP_PROXY ; NO_PROXY respecté
+```
+
+- Seuls les proxys `http://` sont acceptés. La bibliothèque HTTP utilisée parle toujours en clair au proxy : avec `https://`, les identifiants du proxy circuleraient sans chiffrement. Le flux vers l'API Mistral reste chiffré de bout en bout (tunnel `CONNECT` puis TLS).
+- Avec `:env`, `NO_PROXY` suit les règles de curl : `*`, un domaine et ses sous-domaines (`mistral.ai`, `.mistral.ai`, `*.mistral.ai`), éventuellement avec le port 443.
+- Une valeur invalide lève `ConfigurationError` dès l'affectation ; le message ne reprend jamais l'URL, pour ne pas exposer les identifiants.
+- `api_url` reste verrouillée sur `https://api.mistral.ai`.
+- Définissez le proxy avant la première traduction : le client et sa connexion sont créés une fois puis réutilisés.
 
 ## Callbacks
 
@@ -63,9 +80,9 @@ config.setup_rails_logging  # Active les logs Rails standard
 MistralTranslator.health_check
 # => { status: :ok, message: "API connection successful" }
 
-# Langues supportées
+# Langues supportées : les 182 codes ISO 639-1
 MistralTranslator.supported_locales
-# => ["fr", "en", "es", "pt", "de", "it", "nl", "ru", "mg", "ja", "ko", "zh", "ar"]
+# => ["aa", "ab", "ae", "af", ..., "zh", "zu"]
 ```
 
 ---
