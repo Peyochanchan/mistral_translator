@@ -82,18 +82,21 @@ module MistralTranslator
     end
 
     # Traduction en lot (plusieurs textes vers une langue)
-    def translate_batch(texts, from:, to:, context: nil, glossary: nil)
+    # Options : context, glossary, preserve_html (comme #translate)
+    def translate_batch(texts, from:, to:, **options)
       validated_texts = Security::BasicValidator.validate_batch!(texts)
       source_locale = LocaleHelper.validate_locale!(from)
       target_locale = LocaleHelper.validate_locale!(to)
 
       return handle_same_language_batch(validated_texts) if source_locale == target_locale
 
-      process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
+      batch_config = { source_locale: source_locale, target_locale: target_locale, context: options[:context],
+                       glossary: options[:glossary], preserve_html: options.fetch(:preserve_html, false) }
+      process_mixed_batch(validated_texts, batch_config)
     end
 
     # Auto-détection de la langue source avec support du contexte
-    def translate_auto(text, to:, context: nil, glossary: nil)
+    def translate_auto(text, to:, context: nil, glossary: nil, preserve_html: false)
       target_locale = LocaleHelper.validate_locale!(to)
 
       # Premier appel pour détecter la langue
@@ -108,7 +111,8 @@ module MistralTranslator
       end
 
       # Puis traduction normale avec contexte
-      translate(text, from: detected_language, to: target_locale, context: context, glossary: glossary)
+      translate(text, from: detected_language, to: target_locale, context: context, glossary: glossary,
+                      preserve_html: preserve_html)
     end
 
     private
@@ -119,10 +123,8 @@ module MistralTranslator
       validated_texts.each_with_index.to_h { |text, index| [index, text] }
     end
 
-    def process_mixed_batch(validated_texts, source_locale, target_locale, context, glossary)
+    def process_mixed_batch(validated_texts, batch_config)
       results = {}
-      batch_config = { source_locale: source_locale, target_locale: target_locale, context: context,
-                       glossary: glossary }
       requests = build_batch_requests(validated_texts, batch_config, results)
 
       process_batch_requests(requests, results) if requests.any?
@@ -147,7 +149,8 @@ module MistralTranslator
     def create_batch_request(text, batch_config, index)
       {
         prompt: build_translation_prompt(text, batch_config[:source_locale], batch_config[:target_locale],
-                                         context: batch_config[:context], glossary: batch_config[:glossary]),
+                                         context: batch_config[:context], glossary: batch_config[:glossary],
+                                         preserve_html: batch_config[:preserve_html]),
         from: batch_config[:source_locale],
         to: batch_config[:target_locale],
         index: index,

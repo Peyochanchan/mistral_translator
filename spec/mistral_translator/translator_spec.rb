@@ -369,6 +369,23 @@ RSpec.describe MistralTranslator::Translator do
       expect(result).to eq({ 0 => "Bonjour", 1 => "Au revoir" })
     end
 
+    it "passes preserve_html to each batch prompt" do
+      texts = ["<p>Hello</p>", "<p>Goodbye</p>"]
+      expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
+        .with(anything, "en", "fr", preserve_html: true)
+        .twice.and_call_original
+
+      translator.translate_batch(texts, from: "en", to: "fr", preserve_html: true)
+    end
+
+    it "does not preserve HTML by default" do
+      expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
+        .with("Hello", "en", "fr", preserve_html: false)
+        .and_call_original
+
+      translator.translate_batch(["Hello"], from: "en", to: "fr")
+    end
+
     it "processes batch results correctly" do
       texts = %w[Hello Goodbye]
       batch_results = [
@@ -420,7 +437,7 @@ RSpec.describe MistralTranslator::Translator do
       glossary = { "API" => "API" }
 
       expect(translator).to receive(:build_translation_prompt)
-        .with("Hello", "en", "fr", context: context, glossary: glossary)
+        .with("Hello", "en", "fr", context: context, glossary: glossary, preserve_html: false)
         .and_return("enriched prompt")
 
       allow(mock_client).to receive(:translate_batch).and_return([
@@ -470,10 +487,18 @@ RSpec.describe MistralTranslator::Translator do
       glossary = { "Bonjour" => "Hello" }
 
       expect(translator).to receive(:translate)
-        .with("Bonjour", from: "fr", to: "en", context: context, glossary: glossary)
+        .with("Bonjour", from: "fr", to: "en", context: context, glossary: glossary, preserve_html: false)
         .and_return("Hello")
 
       translator.translate_auto("Bonjour", to: "en", context: context, glossary: glossary)
+    end
+
+    it "passes preserve_html to translation" do
+      expect(translator).to receive(:translate)
+        .with("<p>Bonjour</p>", from: "fr", to: "en", context: nil, glossary: nil, preserve_html: true)
+        .and_return("<p>Hello</p>")
+
+      translator.translate_auto("<p>Bonjour</p>", to: "en", preserve_html: true)
     end
 
     it "uses english as fallback for detection errors" do
