@@ -91,34 +91,6 @@ module MistralTranslator
       end
     end
 
-    # Helper pour la gestion des prompts
-    module PromptHandler
-      def enrich_prompt_with_context(base_prompt, context, glossary)
-        context_section = build_context_section(context, glossary)
-        base_prompt + context_section
-      end
-
-      def build_context_section(context, glossary)
-        context_section = ""
-        context_section += add_context_text(context) if context && !context.to_s.strip.empty?
-        context_section += add_glossary_text(glossary) if glossary && !glossary.to_s.strip.empty?
-        context_section
-      end
-
-      def add_context_text(context)
-        "\nCONTEXTE : #{context}\n"
-      end
-
-      def add_glossary_text(glossary)
-        if glossary.is_a?(Hash) && glossary.any?
-          glossary_text = glossary.map { |key, value| "#{key} → #{value}" }.join(", ")
-          "\nGLOSSAIRE (à respecter strictement) : #{glossary_text}\n"
-        else
-          "\nGLOSSAIRE : #{glossary}\n"
-        end
-      end
-    end
-
     # Helper pour l'analyse et la détection de langue
     module AnalysisHelper
       def calculate_confidence_score(original, translated, from_locale, to_locale)

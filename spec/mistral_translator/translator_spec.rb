@@ -309,7 +309,7 @@ RSpec.describe MistralTranslator::Translator do
       targets = %w[fr es de it]
       allow(mock_client).to receive(:translate_batch).and_return([])
       expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
-        .with("<p>Hello</p>", "en", anything, preserve_html: true)
+        .with("<p>Hello</p>", "en", anything, hash_including(preserve_html: true))
         .exactly(targets.size).times.and_call_original
 
       translator.translate_to_multiple("<p>Hello</p>", from: "en", to: targets, use_batch: true, preserve_html: true)
@@ -372,7 +372,7 @@ RSpec.describe MistralTranslator::Translator do
     it "passes preserve_html to each batch prompt" do
       texts = ["<p>Hello</p>", "<p>Goodbye</p>"]
       expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
-        .with(anything, "en", "fr", preserve_html: true)
+        .with(anything, "en", "fr", hash_including(preserve_html: true))
         .twice.and_call_original
 
       translator.translate_batch(texts, from: "en", to: "fr", preserve_html: true)
@@ -380,7 +380,7 @@ RSpec.describe MistralTranslator::Translator do
 
     it "does not preserve HTML by default" do
       expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
-        .with("Hello", "en", "fr", preserve_html: false)
+        .with("Hello", "en", "fr", hash_including(preserve_html: false))
         .and_call_original
 
       translator.translate_batch(["Hello"], from: "en", to: "fr")
@@ -512,75 +512,18 @@ RSpec.describe MistralTranslator::Translator do
 
   describe "private methods" do
     describe "#build_translation_prompt" do
-      it "calls PromptBuilder.translation_prompt without enrichment" do
+      it "passes context, glossary and preserve_html to PromptBuilder" do
         expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
-          .with("Hello", "en", "fr", preserve_html: false)
-          .and_return("basic prompt")
+          .with("Hello", "en", "fr", context: "technical", glossary: { "API" => "API" }, preserve_html: false)
+          .and_call_original
 
-        result = translator.send(:build_translation_prompt, "Hello", "en", "fr")
-        expect(result).to eq("basic prompt")
-      end
+        result = translator.send(:build_translation_prompt, "Hello", "en", "fr",
+                                 context: "technical", glossary: { "API" => "API" })
 
-      it "enriches prompt with context and glossary" do
-        context = "technical documentation"
-        glossary = { "API" => "API", "bug" => "bogue" }
-
-        expect(MistralTranslator::PromptBuilder).to receive(:translation_prompt)
-          .with("Hello", "en", "fr", preserve_html: false)
-          .and_return(MistralTranslator::Prompt.new(instructions: "Tu es un traducteur professionnel.\n\nRÈGLES :",
-                                                    text: "Hello"))
-
-        result = translator.send(:build_translation_prompt, "Hello", "en", "fr", context: context, glossary: glossary)
-
-        expect(result.instructions).to include("CONTEXTE : technical documentation")
-        expect(result.instructions).to include("GLOSSAIRE (à respecter strictement) : API → API, bug → bogue")
-      end
-    end
-
-    describe "#enrich_prompt_with_context" do
-      let(:base_prompt) do
-        MistralTranslator::Prompt.new(instructions: "Tu es un traducteur.\n\nRÈGLES :\n- Traduis fidèlement",
-                                      text: "Hello")
-      end
-
-      it "adds context section" do
-        context = "medical documentation"
-        result = translator.send(:enrich_prompt_with_context, base_prompt, context, nil)
-
-        expect(result.instructions).to include("CONTEXTE : medical documentation")
-        expect(result.instructions).to include("CONTEXTE : medical documentation\n\nRÈGLES :")
-      end
-
-      it "adds glossary section" do
-        glossary = { "heart" => "cœur", "lung" => "poumon" }
-        result = translator.send(:enrich_prompt_with_context, base_prompt, nil, glossary)
-
-        expect(result.instructions).to include("GLOSSAIRE (à respecter strictement) : heart → cœur, lung → poumon")
-      end
-
-      it "keeps the user text out of the enrichment" do
-        result = translator.send(:enrich_prompt_with_context, base_prompt, "medical", nil)
-
-        expect(result.text).to eq(base_prompt.text)
-      end
-
-      it "adds both context and glossary" do
-        context = "medical"
-        glossary = { "heart" => "cœur" }
-        result = translator.send(:enrich_prompt_with_context, base_prompt, context, glossary)
-
-        expect(result.instructions).to include("CONTEXTE : medical")
-        expect(result.instructions).to include("GLOSSAIRE (à respecter strictement) : heart → cœur")
-      end
-
-      it "returns original prompt when no enrichments" do
-        result = translator.send(:enrich_prompt_with_context, base_prompt, nil, nil)
-        expect(result).to eq(base_prompt)
-      end
-
-      it "handles empty glossary" do
-        result = translator.send(:enrich_prompt_with_context, base_prompt, nil, {})
-        expect(result).to eq(base_prompt)
+        expect(result.instructions).to include("CONTEXTE : technical",
+                                               "GLOSSAIRE (à respecter strictement) : API → API")
+        expect(result.instructions).to include('"has_context": true', '"has_glossary": true')
+        expect(result.text).to eq("Hello")
       end
     end
 

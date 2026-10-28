@@ -31,21 +31,45 @@ RSpec.describe MistralTranslator::PromptBuilder do
     end
   end
 
+  describe "context and glossary" do
+    def instructions(**options)
+      described_class.translation_prompt("Hi", "en", "fr", **options).instructions
+    end
+
+    it "renders a glossary hash as strict terms" do
+      expect(instructions(glossary: { "API" => "API", "bug" => "bogue" }))
+        .to include("GLOSSAIRE (à respecter strictement) : API → API, bug → bogue")
+    end
+
+    it "renders a glossary string as is" do
+      expect(instructions(glossary: " API = API ")).to include("GLOSSAIRE : API = API\n")
+    end
+
+    it "ignores an empty glossary and a blank context" do
+      expect(instructions(glossary: {}, context: " ")).not_to include("GLOSSAIRE", "CONTEXTE")
+    end
+
+    it "puts the context before the rules" do
+      expect(instructions(context: "medical")).to match(/CONTEXTE : medical\n\nRÈGLES :/)
+    end
+  end
+
+  describe ".translation_with_validation_prompt" do
+    it "asks for a quality check in the metadata" do
+      prompt = described_class.translation_with_validation_prompt("Hi", "en", "fr")
+
+      expect(prompt.instructions).to include('"operation": "translation_with_validation"', '"quality_check": {')
+      expect(JSON.parse(prompt.instructions[/\{.*\}/m])).to include("metadata")
+      expect(prompt.text).to eq("Hi")
+    end
+  end
+
   describe ".bulk_translation_prompt" do
     it "puts the numbered texts in the user message" do
       prompt = described_class.bulk_translation_prompt(%w[Hello World], "en", "fr")
 
       expect(prompt.text).to include("1. Hello\n2. World")
       expect(prompt.instructions).not_to include("1. Hello")
-    end
-  end
-
-  describe ".translation_with_validation_prompt" do
-    it "adds the quality check to the instructions only" do
-      prompt = described_class.translation_with_validation_prompt("Hi", "en", "fr")
-
-      expect(prompt.instructions).to include('"operation": "translation_with_validation"')
-      expect(prompt.text).to include("Hi")
     end
   end
 end

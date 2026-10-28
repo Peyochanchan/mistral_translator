@@ -4,14 +4,31 @@ module MistralTranslator
   module PromptHelpers
     # Helper pour la construction des sections de contexte
     module ContextBuilder
+      # Seule mise en forme du contexte et du glossaire dans les prompts de traduction
       def build_context_section(context, glossary)
-        return "" unless context || glossary
-
         sections = []
-        sections << "CONTEXTE : #{context}" if context && !context.to_s.strip.empty?
-        sections << "GLOSSAIRE : #{glossary}" if glossary && !glossary.to_s.strip.empty?
+        sections << "CONTEXTE : #{context}" if context_present?(context)
+        sections << glossary_line(glossary) if glossary_present?(glossary)
 
         sections.any? ? "\n#{sections.join("\n")}\n" : ""
+      end
+
+      def glossary_line(glossary)
+        return "GLOSSAIRE : #{glossary.to_s.strip}" unless glossary.is_a?(Hash)
+
+        terms = glossary.map { |source, target| "#{source} → #{target}" }.join(", ")
+        "GLOSSAIRE (à respecter strictement) : #{terms}"
+      end
+
+      def context_present?(context)
+        !context.to_s.strip.empty?
+      end
+
+      # Le glossaire est un Hash ou une chaîne : String ne répond pas à #any?
+      def glossary_present?(glossary)
+        return glossary.any? if glossary.is_a?(Hash)
+
+        !glossary.to_s.strip.empty?
       end
 
       def build_summary_context_section(context, style)

@@ -17,17 +17,16 @@ module MistralTranslator
         source_name = LocaleHelper.prompt_language_name(source_language)
         target_name = LocaleHelper.prompt_language_name(target_language)
 
-        # Construction du contexte enrichi
-        context_section = build_context_section(options[:context], options[:glossary])
-        html_instruction = options[:preserve_html] ? build_html_preservation_instruction : ""
-
-        # Extraire les valeurs pour les métadonnées
-        context = options[:context]
-        glossary = options[:glossary]
-        preserve_html = options[:preserve_html]
+        context, glossary, preserve_html = options.values_at(:context, :glossary, :preserve_html)
+        context_section = build_context_section(context, glossary)
+        html_instruction = preserve_html ? build_html_preservation_instruction : ""
+        quality_check = options.fetch(:quality_check, false)
+        operation = quality_check ? "translation_with_validation" : "translation"
+        metadata_additions = build_metadata_additions(context, glossary, preserve_html, quality_check: quality_check)
 
         Prompt.new(instructions: <<~PROMPT, text: text)
-          Tu es un traducteur professionnel. Traduis le texte fourni de #{source_name} vers #{target_name}.
+          Tu es un traducteur professionnel. Traduis le texte fourni.
+          Langue source : #{source_name}. Langue cible : #{target_name}.
           #{context_section}
           RÈGLES :
           - Traduis fidèlement sans ajouter d'informations
@@ -44,7 +43,7 @@ module MistralTranslator
             "metadata": {
               "source_language": "#{source_language}",
               "target_language": "#{target_language}",
-              "operation": "translation"#{build_metadata_additions(context, glossary, preserve_html)}
+              "operation": "#{operation}"#{metadata_additions}
             }
           }
         PROMPT
@@ -64,7 +63,8 @@ module MistralTranslator
         preserve_html = options[:preserve_html]
 
         Prompt.new(instructions: <<~PROMPT, text: numbered_texts(texts))
-          Tu es un traducteur professionnel. Traduis les textes fournis, numérotés, de #{source_name} vers #{target_name}.
+          Tu es un traducteur professionnel. Traduis les textes fournis, numérotés.
+          Langue source : #{source_name}. Langue cible : #{target_name}.
           #{context_section}
           RÈGLES :
           - Traduis fidèlement chaque texte sans ajouter d'informations
@@ -142,7 +142,8 @@ module MistralTranslator
         style = options[:style]
 
         Prompt.new(instructions: <<~PROMPT, text: text)
-          Tu es un rédacteur professionnel. Résume ET traduis le texte fourni de #{source_name} vers #{target_name}.
+          Tu es un rédacteur professionnel. Résume ET traduis le texte fourni.
+          Langue source : #{source_name}. Langue cible : #{target_name}.
           #{context_section}
           RÈGLES :
           - Résume fidèlement sans ajouter d'informations
@@ -243,17 +244,7 @@ module MistralTranslator
 
       # Nouveau : Prompt pour traduction avec validation de qualité
       def translation_with_validation_prompt(text, source_language, target_language, **)
-        base_prompt = translation_prompt(text, source_language, target_language, **)
-
-        base_prompt.with(instructions: base_prompt.instructions.sub(
-          '"operation": "translation"',
-          '"operation": "translation_with_validation",
-          "quality_check": {
-            "terminology_consistency": "vérifié",
-            "style_preservation": "vérifié",
-            "completeness": "vérifié"
-          }'
-        ))
+        translation_prompt(text, source_language, target_language, **, quality_check: true)
       end
     end
   end

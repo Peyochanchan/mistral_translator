@@ -9,7 +9,6 @@ module MistralTranslator
     include TranslatorHelpers::InputValidator
     include TranslatorHelpers::RetryHandler
     include TranslatorHelpers::LoggingHelper
-    include TranslatorHelpers::PromptHandler
     include TranslatorHelpers::AnalysisHelper
     include TranslatorHelpers::RequestHelper
     include TranslatorHelpers::MultiTargetHelper
@@ -201,60 +200,10 @@ module MistralTranslator
     # Log via LoggingHelper
 
     def build_translation_prompt(text, source_locale, target_locale, **options)
-      base_prompt = PromptBuilder.translation_prompt(text, source_locale, target_locale,
-                                                     preserve_html: options.fetch(:preserve_html, false))
-
-      # Enrichir le prompt avec le contexte et le glossaire
-      context_present = options[:context] && !options[:context].to_s.strip.empty?
-      glossary_present =
-        (options[:glossary].is_a?(Hash) && options[:glossary].any?) ||
-        (options[:glossary].is_a?(String) && !options[:glossary].to_s.strip.empty?)
-      if context_present || glossary_present
-        enrich_prompt_with_context(base_prompt, options[:context], options[:glossary])
-      else
-        base_prompt
-      end
-    end
-
-    def enrich_prompt_with_context(base_prompt, context, glossary)
-      enriched_parts = []
-      context_part = build_context_enrichment(context)
-      glossary_part = build_glossary_enrichment(glossary)
-      enriched_parts << context_part if context_part
-      enriched_parts << glossary_part if glossary_part
-
-      return base_prompt if enriched_parts.empty?
-
-      enriched_context = enriched_parts.join("\n")
-      base_prompt.with(instructions: base_prompt.instructions.sub("RÈGLES :", "#{enriched_context}\n\nRÈGLES :"))
-    end
-
-    def build_context_enrichment(context)
-      return nil if context.nil? || context.to_s.strip.empty?
-
-      "CONTEXTE : #{context}"
-    end
-
-    def build_glossary_enrichment(glossary)
-      return nil if glossary.nil?
-      return build_glossary_hash(glossary) if glossary.is_a?(Hash)
-      return build_glossary_string(glossary) if glossary.is_a?(String)
-
-      nil
-    end
-
-    def build_glossary_hash(glossary_hash)
-      return nil if glossary_hash.empty?
-
-      glossary_text = glossary_hash.map { |key, value| "#{key} → #{value}" }.join(", ")
-      "GLOSSAIRE (à respecter strictement) : #{glossary_text}"
-    end
-
-    def build_glossary_string(glossary_string)
-      value = glossary_string.to_s.strip
-      return nil if value.empty?
-
-      "GLOSSAIRE : #{value}"
+      PromptBuilder.translation_prompt(text, source_locale, target_locale,
+                                       context: options[:context],
+                                       glossary: options[:glossary],
+                                       preserve_html: options.fetch(:preserve_html, false))
     end
   end
 end
