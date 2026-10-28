@@ -454,4 +454,24 @@ RSpec.describe MistralTranslator do
       described_class.reset_metrics!
     end
   end
+
+  describe "#proxy" do
+    let(:config) { MistralTranslator::Configuration.new }
+
+    it "is disabled by default" do
+      expect(config.proxy).to be_nil
+    end
+
+    it "accepts a URL, a URI or :env" do
+      config.proxy = "http://proxy:3128"
+      expect(config.proxy).to eq("http://proxy:3128")
+
+      config.proxy = :env
+      expect(config.proxy).to eq(:env)
+    end
+
+    it "rejects an invalid proxy when it is set" do
+      expect { config.proxy = "ftp://proxy" }.to raise_error(MistralTranslator::ConfigurationError)
+    end
+  end
 end

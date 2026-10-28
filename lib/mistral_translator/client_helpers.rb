@@ -34,6 +34,7 @@ module MistralTranslator
 
           # SSL/TLS configuration
           configure_ssl(pool)
+          configure_proxy(pool)
 
           pool
         end
@@ -54,6 +55,11 @@ module MistralTranslator
 
         # Custom CA certificates directory
         pool.ca_path = config.ssl_ca_path if config.ssl_ca_path
+      end
+
+      def configure_proxy(pool)
+        proxy_uri = Proxy.resolve(MistralTranslator.configuration.proxy, host: URI(@base_uri).host)
+        pool.proxy = proxy_uri if proxy_uri
       end
 
       def build_request_body(prompt, max_tokens, temperature, json: false)

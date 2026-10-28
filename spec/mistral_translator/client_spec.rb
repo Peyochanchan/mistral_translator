@@ -519,6 +519,17 @@ RSpec.describe MistralTranslator::Client do
         pool2 = client.send(:http_pool)
         expect(pool1).to be(pool2)
       end
+
+      it "uses no proxy by default" do
+        expect(client.send(:http_pool).proxy_uri).to be_nil
+      end
+
+      it "routes requests through the configured proxy" do
+        MistralTranslator.configure { |c| c.proxy = "http://proxy.example:3128" }
+        client.instance_variable_set(:@http_pool, nil)
+
+        expect(client.send(:http_pool).proxy_uri.to_s).to eq("http://proxy.example:3128")
+      end
     end
 
     describe "#configure_ssl" do
