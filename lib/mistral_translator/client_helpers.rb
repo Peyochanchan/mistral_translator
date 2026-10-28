@@ -59,7 +59,7 @@ module MistralTranslator
       def build_request_body(prompt, max_tokens, temperature, json: false)
         body = {
           model: @model,
-          messages: [{ role: "user", content: prompt }]
+          messages: request_messages(prompt)
         }
 
         body[:max_tokens] = max_tokens if max_tokens
@@ -68,6 +68,13 @@ module MistralTranslator
         body[:response_format] = { type: "json_object" } if json
 
         body
+      end
+
+      # Un Prompt sépare consignes et texte ; une String part en un seul message.
+      def request_messages(prompt)
+        return prompt.messages if prompt.respond_to?(:messages)
+
+        [{ role: "user", content: prompt }]
       end
 
       def headers

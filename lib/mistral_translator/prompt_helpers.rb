@@ -63,6 +63,10 @@ module MistralTranslator
         JSON_INSTRUCTION
       end
 
+      def numbered_texts(texts)
+        texts.map.with_index { |text, i| "#{i + 1}. #{text}" }.join("\n")
+      end
+
       def build_batch_format_instruction
         <<~BATCH_INSTRUCTION
 

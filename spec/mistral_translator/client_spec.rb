@@ -394,6 +394,13 @@ RSpec.describe MistralTranslator::Client do
         )
       end
 
+      it "sends a Prompt as system and user messages" do
+        split_prompt = MistralTranslator::Prompt.for_text("Consignes", "Texte")
+        body = client.send(:build_request_body, split_prompt, nil, nil)
+
+        expect(body[:messages]).to eq(split_prompt.messages)
+      end
+
       it "requests a JSON object when json is true" do
         body = client.send(:build_request_body, prompt, nil, nil, json: true)
 
