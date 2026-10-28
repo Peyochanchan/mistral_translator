@@ -26,7 +26,7 @@ module MistralTranslator
       # Vérifier le rate limit avant de faire la requête
       @rate_limiter.wait_and_record!
 
-      ctx = (context || {}).merge(operation: :complete)
+      ctx = (context || {}).merge(operation: :complete, json: true)
       start_time = Time.now
       trigger_translation_start_callback(ctx, prompt)
 

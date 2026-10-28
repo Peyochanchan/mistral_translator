@@ -91,23 +91,12 @@ module MistralTranslator
         raise InvalidResponseError, "Invalid JSON in response: #{error.message}. Details: #{error_details}"
       end
 
-      # rubocop:disable Metrics/PerceivedComplexity
       def parse_summary_response(raw_content)
         return nil if raw_content.nil? || raw_content.empty?
 
         begin
           json_content = extract_json_from_content(raw_content)
-          unless json_content
-            # Aucun JSON détecté: utiliser le texte brut comme repli si non vide
-            text = raw_content.to_s.strip
-            raise EmptyTranslationError, "Empty summary received" if text.empty?
-
-            return {
-              original: nil,
-              summary: text,
-              metadata: { "operation" => "summarization", "fallback" => true }
-            }
-          end
+          raise InvalidResponseError, "No JSON in summary response" unless json_content
 
           summary_data = JSON.parse(json_content)
           summary_text = extract_target_content(summary_data)
@@ -120,22 +109,13 @@ module MistralTranslator
             metadata: summary_data["metadata"] || {}
           }
         rescue JSON::ParserError
-          # Fallback: si ce n'est pas du JSON, essayer d'utiliser le texte brut s'il a du contenu
-          text = raw_content.to_s.strip
-          raise InvalidResponseError, "Invalid JSON in summary response: #{raw_content}" if text.empty?
-
-          {
-            original: nil,
-            summary: text,
-            metadata: { "operation" => "summarization", "fallback" => true }
-          }
-        rescue EmptyTranslationError
-          raise # Re-raise EmptyTranslationError
+          raise InvalidResponseError, "Invalid JSON in summary response: #{raw_content}"
+        rescue EmptyTranslationError, InvalidResponseError
+          raise
         rescue StandardError => e
           raise InvalidResponseError, "Error processing summary response: #{e.message}"
         end
       end
-      # rubocop:enable Metrics/PerceivedComplexity
 
       def parse_bulk_translation_response(raw_content)
         return [] if raw_content.nil? || raw_content.empty?
@@ -270,7 +250,7 @@ module MistralTranslator
 
       def extract_target_content(data)
         # Essayer différents chemins possibles pour le contenu traduit
-        [
+        target = [
           data.dig("content", "target"),
           data.dig("translation", "target"),
           data["target"],
@@ -279,6 +259,21 @@ module MistralTranslator
           data.dig("content", "summary"),
           data["summary"]
         ].find { |item| item && !item.to_s.empty? }
+
+        unwrap_nested_target(target)
+      end
+
+      # Le modèle renvoie parfois tout l'objet attendu, sérialisé, dans "target".
+      def unwrap_nested_target(target)
+        return target unless target.is_a?(String) && target.lstrip.start_with?("{")
+
+        nested = JSON.parse(target)
+        return target unless nested.is_a?(Hash)
+
+        nested_target = extract_target_content(nested)
+        nested_target.is_a?(String) && !nested_target.empty? ? nested_target : target
+      rescue JSON::ParserError
+        target
       end
 
       def extract_source_content(data)

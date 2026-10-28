@@ -74,7 +74,8 @@ RSpec.describe MistralTranslator::Client do
               model: "mistral-small-latest",
               messages: [{ role: "user", content: prompt }],
               max_tokens: 100,
-              temperature: 0.7
+              temperature: 0.7,
+              response_format: { type: "json_object" }
             }.to_json
           )
       end
@@ -279,6 +280,15 @@ RSpec.describe MistralTranslator::Client do
       expect(result).to eq("Simple response without JSON")
     end
 
+    it "does not request a JSON response format" do
+      stub_mistral_api(response_body: valid_response_body)
+
+      client.chat(prompt, context: context)
+
+      expect(WebMock).to(have_requested(:post, "https://api.mistral.ai/v1/chat/completions")
+        .with { |req| !JSON.parse(req.body).key?("response_format") })
+    end
+
     it "triggers error callback for malformed JSON response" do
       stub_mistral_api(response_body: "invalid json")
 
@@ -382,6 +392,12 @@ RSpec.describe MistralTranslator::Client do
           max_tokens: 100,
           temperature: 0.7
         )
+      end
+
+      it "requests a JSON object when json is true" do
+        body = client.send(:build_request_body, prompt, nil, nil, json: true)
+
+        expect(body[:response_format]).to eq({ type: "json_object" })
       end
     end
 

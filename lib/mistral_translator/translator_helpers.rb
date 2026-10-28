@@ -202,16 +202,10 @@ module MistralTranslator
         @client.complete(prompt, context: request_context)
       end
 
+      # Une réponse inexploitable lève une erreur : jamais de réponse brute enregistrée comme traduction.
       def extract_translated_text!(raw_response)
-        begin
-          result = ResponseParser.parse_translation_response(raw_response)
-          return result[:translated] if result && !result[:translated].to_s.empty?
-        rescue EmptyTranslationError, InvalidResponseError
-          # Fallback: accepter une réponse texte brute non vide
-          fallback_text = raw_response.to_s.strip
-          return fallback_text unless fallback_text.empty?
-          # sinon on relance l'erreur plus bas
-        end
+        result = ResponseParser.parse_translation_response(raw_response)
+        return result[:translated] if result && !result[:translated].to_s.empty?
 
         raise EmptyTranslationError
       end

@@ -6,10 +6,10 @@ module MistralTranslator
   module ClientHelpers
     # Helper pour la gestion des requêtes HTTP
     module RequestHandler
-      def make_request(prompt, max_tokens, temperature)
+      def make_request(prompt, max_tokens, temperature, json: false)
         uri = URI("#{@base_uri}/v1/chat/completions")
 
-        request_body = build_request_body(prompt, max_tokens, temperature)
+        request_body = build_request_body(prompt, max_tokens, temperature, json: json)
 
         request = Net::HTTP::Post.new(uri.path, headers)
         request.body = request_body.to_json
@@ -56,7 +56,7 @@ module MistralTranslator
         pool.ca_path = config.ssl_ca_path if config.ssl_ca_path
       end
 
-      def build_request_body(prompt, max_tokens, temperature)
+      def build_request_body(prompt, max_tokens, temperature, json: false)
         body = {
           model: @model,
           messages: [{ role: "user", content: prompt }]
@@ -64,6 +64,8 @@ module MistralTranslator
 
         body[:max_tokens] = max_tokens if max_tokens
         body[:temperature] = temperature if temperature
+        # L'API garantit alors un objet JSON syntaxiquement valide
+        body[:response_format] = { type: "json_object" } if json
 
         body
       end
@@ -81,7 +83,7 @@ module MistralTranslator
     module ErrorHandler
       def make_request_with_retry(prompt, max_tokens, temperature, context, attempt = 0)
         context[:attempt] = attempt
-        response = make_request(prompt, max_tokens, temperature)
+        response = make_request(prompt, max_tokens, temperature, json: context[:json] || false)
 
         # Vérifier les erreurs dans la réponse
         check_response_for_errors(response)

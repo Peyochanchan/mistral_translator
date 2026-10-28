@@ -121,6 +121,23 @@ RSpec.describe MistralTranslator::Translator do
         )
       end
 
+      it "never returns a raw text response as the translation" do
+        allow(translator).to receive(:sleep)
+        allow(mock_client).to receive(:complete).and_return("Voici la traduction : Bonjour")
+
+        expect { translator.translate("Hello", from: "en", to: "fr") }.to raise_error(
+          MistralTranslator::EmptyTranslationError
+        )
+      end
+
+      it "retries a raw text response and keeps the JSON one" do
+        allow(translator).to receive(:sleep)
+        allow(mock_client).to receive(:complete).and_return("Bonjour", raw_response)
+
+        expect(translator.translate("Hello", from: "en", to: "fr")).to eq("Bonjour")
+        expect(mock_client).to have_received(:complete).twice
+      end
+
       it "retries on RateLimitError" do
         call_count = 0
         allow(mock_client).to receive(:complete) do

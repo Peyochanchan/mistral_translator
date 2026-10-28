@@ -122,6 +122,31 @@ RSpec.describe MistralTranslator::ResponseParser do
     end
   end
 
+  describe "nested JSON in target" do
+    it "unwraps a serialized response object found in target" do
+      nested = { content: { source: "Hello", target: "Bonjour + merci" } }.to_json
+      response = { content: { source: "Hello", target: nested } }.to_json
+
+      result = described_class.parse_translation_response(response)
+      expect(result[:translated]).to eq("Bonjour + merci")
+    end
+
+    it "keeps a target that only starts with a brace" do
+      response = { content: { source: "{x}", target: "{x} est une variable" } }.to_json
+
+      result = described_class.parse_translation_response(response)
+      expect(result[:translated]).to eq("{x} est une variable")
+    end
+
+    it "keeps a JSON target without a known key" do
+      target = { "a" => 1 }.to_json
+      response = { content: { source: "Hello", target: target } }.to_json
+
+      result = described_class.parse_translation_response(response)
+      expect(result[:translated]).to eq(target)
+    end
+  end
+
   describe ".parse_summary_response" do
     let(:valid_summary_json) do
       {
@@ -160,6 +185,12 @@ RSpec.describe MistralTranslator::ResponseParser do
       expect { described_class.parse_summary_response(empty_summary) }.to raise_error(
         MistralTranslator::EmptyTranslationError,
         "Empty summary received"
+      )
+    end
+
+    it "rejects a raw text response" do
+      expect { described_class.parse_summary_response("Un résumé sans JSON") }.to raise_error(
+        MistralTranslator::InvalidResponseError
       )
     end
 
