@@ -10,8 +10,10 @@ module MistralTranslator
     # Nom de chaque langue dans sa propre langue
     SUPPORTED_LANGUAGES = LANGUAGES.transform_values { |names| names["native"].downcase }.freeze
 
-    # Noms anglais acceptés à la place du code
-    LANGUAGE_ALIASES = LANGUAGES.to_h { |code, names| [names["en"].downcase, code] }.freeze
+    # Noms anglais et français acceptés à la place du code
+    LANGUAGE_ALIASES = LANGUAGES.flat_map do |code, names|
+      [[names["en"].downcase, code], [names["fr"].downcase, code]]
+    end.to_h.freeze
 
     class << self
       def locale_to_language(locale)

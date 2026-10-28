@@ -167,9 +167,11 @@ RSpec.describe MistralTranslator::LocaleHelper do
       end
     end
 
-    it "accepts English names as aliases" do
+    it "accepts English and French names as aliases" do
       expect(described_class.language_to_locale("Breton")).to eq("br")
       expect(described_class.language_to_locale("brezhoneg")).to eq("br")
+      expect(described_class.language_to_locale("German")).to eq("de")
+      expect(described_class.language_to_locale("allemand")).to eq("de")
     end
   end
 end

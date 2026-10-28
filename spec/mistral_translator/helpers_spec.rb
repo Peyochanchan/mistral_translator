@@ -309,6 +309,20 @@ RSpec.describe MistralTranslator::Helpers do
       suggestions = described_class.send(:find_locale_suggestions, "x")
       expect(suggestions.length).to be <= 3
     end
+
+    it "suggests from a language name, even misspelled" do
+      expect(described_class.send(:find_locale_suggestions, "allemand")).to eq(["de"])
+      expect(described_class.send(:find_locale_suggestions, "espagnl")).to eq(["es"])
+    end
+
+    it "suggests from a three-letter code" do
+      expect(described_class.send(:find_locale_suggestions, "deu")).to eq(["de"])
+    end
+
+    it "suggests nothing for an unrelated word or code" do
+      expect(described_class.send(:find_locale_suggestions, "klingon")).to be_empty
+      expect(described_class.send(:find_locale_suggestions, "xx")).to be_empty
+    end
   end
 
   describe ".estimate_translation_cost" do
