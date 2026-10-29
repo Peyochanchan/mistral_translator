@@ -535,14 +535,10 @@ RSpec.describe MistralTranslator::Client do
         expect(client.send(:http_pool).read_timeout).to eq(180)
       end
 
-      it "uses SSL timeout from configuration" do
-        MistralTranslator.configure { |c| c.ssl_timeout = 45 }
+      it "uses the open timeout from configuration" do
+        MistralTranslator.configure { |c| c.open_timeout = 45 }
 
-        # Reset pool to pick up new config
-        client.instance_variable_set(:@http_pool, nil)
-
-        pool = client.send(:http_pool)
-        expect(pool.open_timeout).to eq(45)
+        expect(client.send(:http_pool).open_timeout).to eq(45)
       end
 
       it "reuses the same pool instance" do

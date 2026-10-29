@@ -13,27 +13,36 @@ MistralTranslator.configure do |config|
   config.api_key = ENV['MISTRAL_API_KEY']        # Obligatoire
   config.model = "mistral-small-latest"                 # Défaut
   config.api_url = "https://api.mistral.ai"      # URL API
-  config.default_max_tokens = 4000               # Limite tokens
-  config.default_temperature = 0.3               # Créativité (0-1)
   config.retry_delays = [2, 4, 8, 16, 32]       # Délais retry (secondes)
   config.enable_metrics = false                  # Suivi des stats
   config.proxy = nil                             # Proxy HTTP (désactivé par défaut)
+  config.open_timeout = 60                       # Ouverture de la connexion (secondes)
   config.read_timeout = 60                       # Attente maximale de la réponse (secondes)
 end
 ```
 
 Configurez la gem avant le premier appel. Les méthodes du module (`MistralTranslator.translate`, `summarize`…) partagent un client, qui lit `api_key`, `model`, `api_url`, `retry_delays` et les réglages de connexion (`read_timeout`, `proxy`, SSL) lors du premier appel. Pour les changer ensuite, appelez `MistralTranslator.reset_configuration!` puis configurez à nouveau, ou créez un `MistralTranslator::Translator.new` (ou `Summarizer.new`), qui construit son propre client avec la configuration du moment.
 
-## Délai de réponse
+## Délais
 
-`read_timeout` fixe le temps maximal d'attente de la réponse de l'API, en secondes : 60 par défaut. Un long texte ou un résumé détaillé peut demander plus au modèle ; augmentez-le dans ce cas.
+Deux délais, en secondes, 60 par défaut :
+
+- `open_timeout` : ouverture de la connexion à l'API (TCP puis TLS) ;
+- `read_timeout` : attente de la réponse. Un long texte ou un résumé détaillé peut demander plus au modèle ; augmentez-le dans ce cas.
 
 ```ruby
 config.read_timeout = 180
 ```
 
 - Seul un nombre strictement positif est accepté (entier ou décimal) ; toute autre valeur lève `ConfigurationError` dès l'affectation.
-- Délai dépassé : la requête lève `ApiError` (« Request timeout »).
+- Délai de réponse dépassé : la requête lève `ApiError` (« Request timeout »).
+
+## Options obsolètes
+
+Elles fonctionnent encore, avec un avertissement, et seront retirées en 1.0 :
+
+- `ssl_timeout` : ancien nom d'`open_timeout`, qu'il règle toujours ;
+- `default_max_tokens` et `default_temperature` : jamais lues par la gem, elles n'ont aucun effet. Pour régler ces paramètres, passez `max_tokens:` et `temperature:` à `Client#chat` ou `Client#complete`.
 
 ## Proxy
 

@@ -79,8 +79,6 @@ MistralTranslator.configure do |config|
   config.model = "mistral-small-latest"                # Modèle par défaut
   config.retry_delays = [2, 4, 8, 16]          # Délais retry
   config.enable_metrics = true                  # Suivi des stats
-  config.default_max_tokens = 4000              # Limite tokens
-  config.default_temperature = 0.3              # Créativité
 end
 ```
 

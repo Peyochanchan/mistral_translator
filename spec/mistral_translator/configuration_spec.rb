@@ -8,8 +8,6 @@ RSpec.describe MistralTranslator::Configuration do
       expect(config.api_key).to be_nil
       expect(config.api_url).to eq("https://api.mistral.ai")
       expect(config.model).to eq("mistral-small-latest")
-      expect(config.default_max_tokens).to be_nil
-      expect(config.default_temperature).to be_nil
     end
 
     it "sets default retry delays" do
@@ -251,7 +249,6 @@ RSpec.describe MistralTranslator::Configuration do
       expect(config.ssl_verify_mode).to eq(:peer)
       expect(config.ssl_ca_file).to be_nil
       expect(config.ssl_ca_path).to be_nil
-      expect(config.ssl_timeout).to eq(60)
     end
 
     it "allows setting custom SSL verify mode" do
@@ -267,11 +264,6 @@ RSpec.describe MistralTranslator::Configuration do
     it "allows setting custom CA path" do
       config.ssl_ca_path = "/path/to/certs"
       expect(config.ssl_ca_path).to eq("/path/to/certs")
-    end
-
-    it "allows setting custom SSL timeout" do
-      config.ssl_timeout = 30
-      expect(config.ssl_timeout).to eq(30)
     end
   end
 
@@ -475,27 +467,64 @@ RSpec.describe MistralTranslator do
     end
   end
 
-  describe "#read_timeout" do
+  %i[open_timeout read_timeout].each do |timeout|
+    describe "##{timeout}" do
+      let(:config) { MistralTranslator::Configuration.new }
+
+      it "is 60 seconds by default" do
+        expect(config.public_send(timeout)).to eq(60)
+      end
+
+      it "accepts a positive number of seconds" do
+        config.public_send(:"#{timeout}=", 180)
+        expect(config.public_send(timeout)).to eq(180)
+
+        config.public_send(:"#{timeout}=", 0.5)
+        expect(config.public_send(timeout)).to eq(0.5)
+      end
+
+      [0, -1, "180", nil].each do |value|
+        it "rejects #{value.inspect} when it is set" do
+          expect { config.public_send(:"#{timeout}=", value) }
+            .to raise_error(MistralTranslator::ConfigurationError, /#{timeout} must be a positive number/)
+          expect(config.public_send(timeout)).to eq(60)
+        end
+      end
+    end
+  end
+
+  describe "deprecated options" do
     let(:config) { MistralTranslator::Configuration.new }
 
-    it "waits 60 seconds by default" do
-      expect(config.read_timeout).to eq(60)
+    def deprecation(name)
+      /config\.#{name} is deprecated and will be removed in 1\.0/
     end
 
-    it "accepts a positive number of seconds" do
-      config.read_timeout = 180
-      expect(config.read_timeout).to eq(180)
-
-      config.read_timeout = 0.5
-      expect(config.read_timeout).to eq(0.5)
+    it "keeps ssl_timeout as an alias of open_timeout, with a warning" do
+      expect { config.ssl_timeout = 45 }.to output(deprecation(:ssl_timeout)).to_stderr
+      expect(config.open_timeout).to eq(45)
+      expect { expect(config.ssl_timeout).to eq(45) }.to output(deprecation(:ssl_timeout)).to_stderr
     end
 
-    [0, -1, "180", nil].each do |value|
-      it "rejects #{value.inspect} when it is set" do
-        expect { config.read_timeout = value }
-          .to raise_error(MistralTranslator::ConfigurationError, /read_timeout must be a positive number/)
-        expect(config.read_timeout).to eq(60)
+    it "validates ssl_timeout like open_timeout" do
+      expect { config.ssl_timeout = nil }
+        .to raise_error(MistralTranslator::ConfigurationError)
+        .and output(deprecation(:ssl_timeout)).to_stderr
+    end
+
+    %i[default_max_tokens default_temperature].each do |option|
+      it "warns that #{option} has no effect" do
+        expect { config.public_send(:"#{option}=", 1) }.to output(/#{deprecation(option)}: it has no effect/).to_stderr
+        expect { expect(config.public_send(option)).to eq(1) }.to output(deprecation(option)).to_stderr
       end
+    end
+
+    it "points the warning at the caller" do
+      expect { config.ssl_timeout = 45 }.to output(/\A#{Regexp.escape(__FILE__)}:\d+: warning:/).to_stderr
+    end
+
+    it "warns about nothing in the default configuration" do
+      expect { MistralTranslator::Configuration.new }.not_to output.to_stderr
     end
   end
 end

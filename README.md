@@ -166,6 +166,7 @@ MistralTranslator.configure do |config|
   config.enable_metrics = true                     # Enable performance metrics
   config.proxy = :env                              # HTTP proxy: nil (default), "http://host:port", or :env
                                                    # to read HTTPS_PROXY / HTTP_PROXY and NO_PROXY
+  config.open_timeout = 60                         # Seconds to open the connection (default 60)
   config.read_timeout = 60                         # Seconds to wait for the API's answer (default 60);
                                                    # raise it for long texts or summaries
 

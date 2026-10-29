@@ -272,7 +272,6 @@ MistralTranslator.configure do |config|
 
   # Optimisation Rails
   config.enable_metrics = true
-  config.default_max_tokens = 4000
 
   # Cache intelligent des traductions
   config.on_translation_complete = ->(from, to, orig_len, trans_len, duration) {

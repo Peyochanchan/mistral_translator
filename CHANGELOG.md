@@ -3,6 +3,14 @@
 ### Added
 
 - `config.read_timeout`: how long to wait for the API's answer, in seconds. Defaults to 60, the value the gem used until now; anything but a positive number raises `ConfigurationError` when it is set.
+- `config.open_timeout`: how long to wait for the connection to open (TCP, then TLS), in seconds. Defaults to 60, validated the same way.
+
+### Deprecated
+
+These options still work, print a warning, and will be removed in 1.0:
+
+- `config.ssl_timeout`, the former name of `open_timeout`, which it still sets. It is now validated like `open_timeout`, so `nil` (no limit) is rejected.
+- `config.default_max_tokens` and `config.default_temperature`, which the gem never read.
 
 ## [Unreleased]
 

@@ -32,7 +32,7 @@ module MistralTranslator
           pool = Net::HTTP::Persistent.new(name: "mistral_translator")
           pool.read_timeout = MistralTranslator.configuration.read_timeout
           pool.idle_timeout = 30
-          pool.open_timeout = MistralTranslator.configuration.ssl_timeout
+          pool.open_timeout = MistralTranslator.configuration.open_timeout
           pool.max_requests = 100
 
           # SSL/TLS configuration
