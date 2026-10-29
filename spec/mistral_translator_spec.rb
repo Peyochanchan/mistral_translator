@@ -505,6 +505,7 @@ RSpec.describe "MistralTranslator Integration" do
         adapter: adapter,
         source_locale: :en
       )
+      allow(service).to receive(:sleep)
 
       result = service.translate_to_all_locales
 

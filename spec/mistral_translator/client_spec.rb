@@ -194,6 +194,7 @@ RSpec.describe MistralTranslator::Client do
         MistralTranslator.configure do |config|
           config.on_rate_limit = rate_limit_callback
         end
+        allow(client).to receive(:sleep)
       end
 
       it "retries on rate limit and succeeds" do

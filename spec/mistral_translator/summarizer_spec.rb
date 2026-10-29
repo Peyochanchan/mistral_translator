@@ -8,6 +8,8 @@ RSpec.describe MistralTranslator::Summarizer do
   # Configuration pour debug
   before do
     ENV["MISTRAL_TRANSLATOR_DEBUG"] = "true"
+    # Pas de vraie attente entre les requêtes et les relances
+    allow(summarizer).to receive(:sleep)
   end
 
   after do
@@ -144,7 +146,6 @@ RSpec.describe MistralTranslator::Summarizer do
       end
 
       it "gives up after a few RateLimitError retries" do
-        allow(summarizer).to receive(:sleep)
         call_count = 0
         allow(mock_client).to receive(:complete) do
           call_count += 1
@@ -195,7 +196,6 @@ RSpec.describe MistralTranslator::Summarizer do
     end
 
     it "retries an unusable response, then raises instead of falling back" do
-      allow(summarizer).to receive(:sleep)
       allow(mock_client).to receive(:complete).and_return("Pas de JSON")
 
       expect { summarizer.summarize_and_translate(long_text, from: "fr", to: "en") }

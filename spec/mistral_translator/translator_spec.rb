@@ -6,6 +6,8 @@ RSpec.describe MistralTranslator::Translator do
 
   before do
     MistralTranslator.configure { |c| c.api_key = "test_api_key" }
+    # Pas de vraie attente entre les requêtes et les relances
+    allow(translator).to receive(:sleep)
   end
 
   describe "#initialize" do
@@ -122,7 +124,6 @@ RSpec.describe MistralTranslator::Translator do
       end
 
       it "never returns a raw text response as the translation" do
-        allow(translator).to receive(:sleep)
         allow(mock_client).to receive(:complete).and_return("Voici la traduction : Bonjour")
 
         expect { translator.translate("Hello", from: "en", to: "fr") }.to raise_error(
@@ -131,7 +132,6 @@ RSpec.describe MistralTranslator::Translator do
       end
 
       it "retries a raw text response and keeps the JSON one" do
-        allow(translator).to receive(:sleep)
         allow(mock_client).to receive(:complete).and_return("Bonjour", raw_response)
 
         expect(translator.translate("Hello", from: "en", to: "fr")).to eq("Bonjour")
@@ -153,7 +153,6 @@ RSpec.describe MistralTranslator::Translator do
       end
 
       it "gives up after a few RateLimitError retries" do
-        allow(translator).to receive(:sleep)
         call_count = 0
         allow(mock_client).to receive(:complete) do
           call_count += 1
