@@ -7,7 +7,6 @@ require_relative "security"
 module MistralTranslator
   class Translator
     include TranslatorHelpers::InputValidator
-    include TranslatorHelpers::RetryHandler
     include TranslatorHelpers::LoggingHelper
     include TranslatorHelpers::AnalysisHelper
     include TranslatorHelpers::RequestHelper

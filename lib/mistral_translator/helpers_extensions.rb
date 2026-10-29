@@ -25,43 +25,6 @@ module MistralTranslator
         opts = { context: options[:context], glossary: options[:glossary] }
         MistralTranslator.translate(text, from: from, to: to, preserve_html: true, **opts)
       end
-
-      def translate_with_progress(items, from:, to:, **options)
-        results = {}
-        total = items.size
-        processed = 0
-
-        items.each do |key, text|
-          results[key] = MistralTranslator.translate(text, from: from, to: to, **options)
-          processed += 1
-          yield(processed, total, key) if block_given?
-        end
-
-        results
-      end
-
-      def translate_multi_style(text, from:, to:, **options)
-        results = {}
-
-        styles = options[:styles] || %i[formal casual]
-        styles.each do |style|
-          style_context = options[:context] ? "#{options[:context]} (Style: #{style})" : "Style: #{style}"
-
-          begin
-            results[style] = MistralTranslator.translate(
-              text,
-              from: from,
-              to: to,
-              context: style_context,
-              glossary: options[:glossary]
-            )
-          rescue StandardError => e
-            results[style] = { error: e.message }
-          end
-        end
-
-        results
-      end
     end
 
     # Extensions pour les helpers d'analyse
@@ -102,27 +65,6 @@ module MistralTranslator
           suggested_words: optimal_words,
           compression_ratio: (optimal_words.to_f / word_count * 100).round(1)
         }
-      end
-
-      def find_locale_suggestions(invalid_locale)
-        return [] unless invalid_locale.is_a?(String)
-
-        supported = LocaleHelper.supported_locales.map(&:to_s)
-
-        # Recherche par similarité basique
-        suggestions = supported.select do |locale|
-          locale.start_with?(invalid_locale.downcase) ||
-            invalid_locale.downcase.start_with?(locale)
-        end
-
-        # Si pas de suggestions par préfixe, chercher par distance
-        if suggestions.empty?
-          suggestions = supported.select do |locale|
-            levenshtein_distance(invalid_locale.downcase, locale) <= 2
-          end
-        end
-
-        suggestions.first(3) # Limiter à 3 suggestions
       end
     end
 

@@ -56,25 +56,6 @@ module MistralTranslator
         end
       end
 
-      def parse_bulk_translation_response(raw_content)
-        return [] if raw_content.nil? || raw_content.empty?
-
-        with_response_errors("bulk", raw_content) do
-          translations = parse_response_json(raw_content, "bulk")["translations"]
-          unless translations.is_a?(Array)
-            raise InvalidResponseError.new("No translations array in response", raw_content)
-          end
-
-          translations.map do |translation|
-            {
-              index: translation["index"],
-              original: translation["source"],
-              translated: translation["target"]
-            }
-          end
-        end
-      end
-
       def parse_json_content(json_content)
         JSON.parse(json_content)
       rescue JSON::ParserError

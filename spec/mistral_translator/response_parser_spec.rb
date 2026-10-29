@@ -248,72 +248,6 @@ RSpec.describe MistralTranslator::ResponseParser do
     end
   end
 
-  describe ".parse_bulk_translation_response" do
-    let(:valid_bulk_json) do
-      {
-        translations: [
-          {
-            index: 1,
-            source: "Hello",
-            target: "Bonjour"
-          },
-          {
-            index: 2,
-            source: "Goodbye",
-            target: "Au revoir"
-          }
-        ],
-        metadata: {
-          source_language: "en",
-          target_language: "fr",
-          count: 2
-        }
-      }.to_json
-    end
-
-    it "parses bulk translation response correctly" do
-      result = described_class.parse_bulk_translation_response(valid_bulk_json)
-
-      expect(result).to eq([
-                             {
-                               index: 1,
-                               original: "Hello",
-                               translated: "Bonjour"
-                             },
-                             {
-                               index: 2,
-                               original: "Goodbye",
-                               translated: "Au revoir"
-                             }
-                           ])
-    end
-
-    it "raises InvalidResponseError when no translations array" do
-      invalid_json = {
-        content: {
-          target: "Something"
-        }
-      }.to_json
-
-      expect { described_class.parse_bulk_translation_response(invalid_json) }.to raise_error(
-        MistralTranslator::InvalidResponseError,
-        "No translations array in response"
-      )
-    end
-
-    it "returns empty array for invalid input" do
-      expect(described_class.parse_bulk_translation_response(nil)).to eq([])
-      expect(described_class.parse_bulk_translation_response("")).to eq([])
-    end
-
-    it "handles malformed bulk response" do
-      expect { described_class.parse_bulk_translation_response("invalid json") }.to raise_error(
-        MistralTranslator::InvalidResponseError,
-        /No JSON in bulk response/
-      )
-    end
-  end
-
   describe "private methods" do
     describe ".extract_json_from_content" do
       it "extracts JSON from mixed content" do
@@ -426,12 +360,8 @@ RSpec.describe MistralTranslator::ResponseParser do
         }
       end
 
-      it "keeps summary and bulk responses out of error messages" do
+      it "keeps summary responses out of error messages" do
         expect { described_class.parse_summary_response("Texte confidentiel") }.to raise_error(
-          MistralTranslator::InvalidResponseError
-        ) { |error| expect(error.message).not_to include("confidentiel") }
-
-        expect { described_class.parse_bulk_translation_response("Texte confidentiel") }.to raise_error(
           MistralTranslator::InvalidResponseError
         ) { |error| expect(error.message).not_to include("confidentiel") }
       end

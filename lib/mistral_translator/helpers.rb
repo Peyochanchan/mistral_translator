@@ -252,11 +252,6 @@ module MistralTranslator
 
         LevenshteinHelpers.levenshtein_distance(input, name) <= (name.length >= 8 ? 2 : 1)
       end
-
-      # Exposer la distance de Levenshtein en privé via délégation pour les tests
-      def levenshtein_distance(source_string, target_string)
-        LevenshteinHelpers.levenshtein_distance(source_string, target_string)
-      end
     end
 
     # Module pour inclure dans les classes Rails si souhaité

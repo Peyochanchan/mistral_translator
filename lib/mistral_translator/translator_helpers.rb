@@ -39,49 +39,11 @@ module MistralTranslator
       end
     end
 
-    # Helper pour la gestion des retry
-    module RetryHandler
-      DEFAULT_RETRY_DELAY = 2
-
-      def handle_retry_error(error, source_locale, target_locale, attempt)
-        case error
-        when RateLimitError
-          handle_rate_limit_retry?(source_locale, target_locale, attempt)
-        when ApiError
-          handle_api_error_retry?(error, source_locale, target_locale, attempt)
-        else
-          raise error
-        end
-      end
-
-      # Renvoie true si un retry a été effectué
-      def handle_rate_limit_retry?(source_locale, target_locale, _attempt)
-        log_rate_limit_hit(source_locale, target_locale)
-        sleep(DEFAULT_RETRY_DELAY)
-        # NOTE: retry logic should be handled by the calling method
-        true
-      end
-
-      # Renvoie true si un retry a été effectué
-      def handle_api_error_retry?(error, _source_locale, _target_locale, attempt)
-        raise error unless attempt < 3 && error.message.include?("timeout")
-
-        Logger.warn("API timeout, retrying... (attempt #{attempt + 1})")
-        sleep(DEFAULT_RETRY_DELAY)
-        # NOTE: retry logic should be handled by the calling method
-        true
-      end
-    end
-
     # Helper pour le logging
     module LoggingHelper
       def log_rate_limit_hit(source_locale, target_locale)
         message = "Rate limit hit for #{source_locale}->#{target_locale}"
         Logger.warn_once(message, key: "rate_limit_#{source_locale}_#{target_locale}", sensitive: false, ttl: 300)
-      end
-
-      def log_translation_attempt(source_locale, target_locale, attempt)
-        Logger.debug("Translation attempt #{attempt} for #{source_locale}->#{target_locale}")
       end
 
       def log_retry(error, attempt, wait_time)

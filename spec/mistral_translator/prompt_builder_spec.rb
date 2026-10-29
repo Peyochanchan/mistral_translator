@@ -63,13 +63,4 @@ RSpec.describe MistralTranslator::PromptBuilder do
       expect(prompt.text).to eq("Hi")
     end
   end
-
-  describe ".bulk_translation_prompt" do
-    it "puts the numbered texts in the user message" do
-      prompt = described_class.bulk_translation_prompt(%w[Hello World], "en", "fr")
-
-      expect(prompt.text).to include("1. Hello\n2. World")
-      expect(prompt.instructions).not_to include("1. Hello")
-    end
-  end
 end
