@@ -21,6 +21,8 @@ MistralTranslator.configure do |config|
 end
 ```
 
+Configurez la gem avant le premier appel. Les méthodes du module (`MistralTranslator.translate`, `summarize`…) partagent un client, qui lit `api_key`, `model`, `api_url` et `retry_delays` à sa création, lors du premier appel. Pour les changer ensuite, appelez `MistralTranslator.reset_configuration!` puis configurez à nouveau, ou créez un `MistralTranslator::Translator.new` (ou `Summarizer.new`), qui construit son propre client avec la configuration du moment.
+
 ## Proxy
 
 Désactivé par défaut. Trois valeurs possibles :

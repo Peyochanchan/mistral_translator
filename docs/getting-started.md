@@ -52,6 +52,8 @@ MistralTranslator::LocaleHelper.locale_supported?("ja")
 # => true
 ```
 
+La liste et les noms viennent des données CLDR de macOS 27.2, via `bin/generate_languages` (2026-10-28).
+
 La qualité de traduction dépend du modèle Mistral : excellente pour les langues les plus parlées, plus faible pour les langues rares. Vérifiez le résultat avant de vous appuyer sur une langue rare.
 
 ## 🚨 Gestion d'Erreurs Simple

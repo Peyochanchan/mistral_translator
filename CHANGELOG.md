@@ -1,5 +1,25 @@
 ## [Unreleased]
 
+Internal cleanup: no change to the documented API or to translation results.
+
+### Changed
+
+- Translations and summaries share one retry policy, with the same delays and counts as before. Their retry log lines now share one format, such as `translation retry 1/3 for fr->en in 2s: …`.
+- The `Summarizer` no longer prints to stdout when `MISTRAL_TRANSLATOR_TEST_OUTPUT` is set.
+- A response is parsed once instead of twice.
+
+### Security
+
+- When the scan for a JSON object inside text reached its limit, the error kept the `JSON::ParserError` as its `cause`, and that error quotes the response.
+
+### Removed
+
+Undocumented code that the gem never called:
+
+- the `HelpersExtensions` copies of `translate_with_progress`, `translate_multi_style` and `find_locale_suggestions`, which `Helpers` redefines;
+- `TranslatorHelpers::RetryHandler`, `TranslatorHelpers::LoggingHelper` and `InputValidator#validate_batch_inputs!`;
+- `PromptBuilder.bulk_translation_prompt`, `PromptBuilder.tiered_summary_prompt`, `PromptHelpers::FormatInstructions`, `ResponseParser.parse_bulk_translation_response` and `ResponseParser::JsonParserState`.
+
 ## [0.4.0] - 2026-10-28
 
 ### Changed
