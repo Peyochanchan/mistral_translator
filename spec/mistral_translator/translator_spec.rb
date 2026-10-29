@@ -633,25 +633,6 @@ RSpec.describe MistralTranslator::Translator do
       end
     end
 
-    describe "#validate_batch_inputs!" do
-      it "validates texts array" do
-        expect { translator.send(:validate_batch_inputs!, nil, "en", "fr") }.to raise_error(ArgumentError)
-        expect { translator.send(:validate_batch_inputs!, [], "en", "fr") }.to raise_error(ArgumentError)
-      end
-
-      it "handles empty texts in batch" do
-        texts = ["Hello", "", "World"]
-        # Ce test utilise l'ancienne méthode de validation qui n'est plus utilisée
-        # La nouvelle validation se fait via MistralTranslator::Security::BasicValidator
-        expect { MistralTranslator::Security::BasicValidator.validate_batch!(texts) }.not_to raise_error
-      end
-
-      it "passes with valid batch inputs" do
-        texts = %w[Hello World]
-        expect { translator.send(:validate_batch_inputs!, texts, "en", "fr") }.not_to raise_error
-      end
-    end
-
     describe "#parse_language_detection" do
       it "extracts detected language from response" do
         response = '{"metadata": {"detected_language": "fr", "confidence": 0.95}}'

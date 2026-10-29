@@ -20,23 +20,6 @@ module MistralTranslator
         validate_inputs!(text, from, to)
         raise ArgumentError, "Target languages cannot be empty" if Array(to).empty?
       end
-
-      def validate_batch_inputs!(texts, from, to)
-        raise ArgumentError, "Texts array cannot be nil or empty" if texts.nil? || texts.empty?
-
-        ensure_present!(from, "Source language")
-        ensure_present!(to, "Target language")
-
-        texts.each_with_index do |t, i|
-          ensure_present!(t, "Text at index #{i}")
-        end
-      end
-
-      private
-
-      def ensure_present!(value, field_name)
-        raise ArgumentError, "#{field_name} cannot be nil or empty" if value.nil? || value.to_s.strip.empty?
-      end
     end
 
     # Helper pour le logging
