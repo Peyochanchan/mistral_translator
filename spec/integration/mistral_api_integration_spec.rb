@@ -224,12 +224,14 @@ RSpec.describe "Mistral API Integration", :vcr do
     end
 
     it "creates tiered summaries with different lengths" do
+      # Toutes les longueurs restent sous celle du texte (environ 95 mots) : au-delà,
+      # le modèle rend le texte presque entier et deux niveaux peuvent être identiques.
       result = MistralTranslator.summarize_tiered(
         long_text,
         language: "fr",
-        short: 25,
-        medium: 75,
-        long: 150
+        short: 15,
+        medium: 30,
+        long: 60
       )
 
       expect(result).to have_key(:short)
