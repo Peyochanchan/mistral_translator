@@ -1,13 +1,16 @@
 # frozen_string_literal: true
 
 require_relative "logger"
+require_relative "retries"
 require_relative "security"
 
 module MistralTranslator
   class Summarizer
+    include Retries
+
     DEFAULT_MAX_WORDS = 250
-    DEFAULT_RETRY_COUNT = 3
-    DEFAULT_RETRY_DELAY = 2
+    DEFAULT_RETRY_COUNT = Retries::RETRY_COUNT
+    DEFAULT_RETRY_DELAY = Retries::RETRY_DELAY
 
     def initialize(client: nil)
       @client = client || Client.new
@@ -84,28 +87,16 @@ module MistralTranslator
 
     private
 
-    # Relances communes à tous les résumés ; une réponse inexploitable finit par lever une erreur.
-    def request_summary(prompt, target_locale, attempt = 0)
-      log_debug("Summary attempt #{attempt + 1} for #{target_locale}")
+    # Commun à tous les résumés ; une réponse inexploitable finit par lever une erreur.
+    def request_summary(prompt, target_locale)
+      with_retries(operation: "summary", subject: target_locale) do |attempt|
+        log_debug("Summary attempt #{attempt + 1} for #{target_locale}")
 
-      result = ResponseParser.parse_summary_response(@client.complete(prompt, json: true))
-      raise EmptyTranslationError, "Empty summary received" if result.nil? || result[:summary].to_s.empty?
+        result = ResponseParser.parse_summary_response(@client.complete(prompt, json: true))
+        raise EmptyTranslationError, "Empty summary received" if result.nil? || result[:summary].to_s.empty?
 
-      result[:summary]
-    rescue EmptyTranslationError, InvalidResponseError => e
-      raise if attempt >= DEFAULT_RETRY_COUNT
-
-      wait_time = DEFAULT_RETRY_DELAY * (2**attempt)
-      log_retry(e, attempt + 1, wait_time, target_locale)
-      sleep(wait_time)
-      request_summary(prompt, target_locale, attempt + 1)
-    rescue RateLimitError
-      # Le client a déjà relancé avec backoff : quelques tentatives de plus suffisent.
-      raise if attempt >= DEFAULT_RETRY_COUNT
-
-      log_rate_limit_hit("summary", target_locale)
-      sleep(DEFAULT_RETRY_DELAY)
-      request_summary(prompt, target_locale, attempt + 1)
+        result[:summary]
+      end
     end
 
     def clean_document_content(content)
@@ -157,36 +148,8 @@ module MistralTranslator
       raise ArgumentError, "Long length must be greater than medium" unless long > medium
     end
 
-    def log_retry(error, attempt, wait_time, locale)
-      message = "Summary retry #{attempt}/#{DEFAULT_RETRY_COUNT} for #{locale} in #{wait_time}s: #{error.message}"
-      # Log une seule fois par locale et type d'erreur
-      Logger.warn_once(message, key: "summary_retry_#{locale}_#{error.class.name}", sensitive: false, ttl: 120)
-    end
-
-    def log_rate_limit_hit(operation, locale)
-      message = "Rate limit hit for #{operation} in #{locale}, retrying..."
-      # Log une seule fois par opération et locale
-      Logger.warn_once(message, key: "summary_rate_limit_#{operation}_#{locale}", sensitive: false, ttl: 300)
-    end
-
     def log_debug(message)
-      # Log de debug seulement si mode verbose activé
       Logger.debug_if_verbose(message, sensitive: false)
-
-      # Pour les tests, permettre un output dans stdout si nécessaire
-      return unless ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] == "true"
-
-      puts "[MistralTranslator] #{message}"
-    end
-
-    def log_error(message)
-      # Utiliser le logger centralisé
-      Logger.warn(message, sensitive: false)
-
-      # Pour les tests, optionnellement afficher en stdout
-      return unless ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] == "true"
-
-      puts "[MistralTranslator] ERROR: #{message}"
     end
   end
 end

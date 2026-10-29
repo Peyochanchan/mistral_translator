@@ -1,19 +1,20 @@
 # frozen_string_literal: true
 
 require_relative "logger"
+require_relative "retries"
 require_relative "translator_helpers"
 require_relative "security"
 
 module MistralTranslator
   class Translator
+    include Retries
     include TranslatorHelpers::InputValidator
-    include TranslatorHelpers::LoggingHelper
     include TranslatorHelpers::AnalysisHelper
     include TranslatorHelpers::RequestHelper
     include TranslatorHelpers::MultiTargetHelper
 
-    DEFAULT_RETRY_COUNT = 3
-    DEFAULT_RETRY_DELAY = 2
+    DEFAULT_RETRY_COUNT = Retries::RETRY_COUNT
+    DEFAULT_RETRY_DELAY = Retries::RETRY_DELAY
 
     def initialize(client: nil)
       @client = client || Client.new
@@ -175,28 +176,14 @@ module MistralTranslator
       nil
     end
 
-    def translate_with_retry(text, source_locale, target_locale, attempt = 0, **options)
-      prompt = build_prompt_for_retry(text, source_locale, target_locale, **options)
-      request_context = build_request_context(source_locale, target_locale, attempt)
+    def translate_with_retry(text, source_locale, target_locale, **)
+      prompt = build_translation_prompt(text, source_locale, target_locale, **)
 
-      raw_response = perform_client_request(prompt, request_context)
-      extract_translated_text!(raw_response)
-    rescue EmptyTranslationError, InvalidResponseError => e
-      handle_retryable_error!(e, attempt) do
-        translate_with_retry(text, source_locale, target_locale, attempt + 1, **options)
+      with_retries(operation: "translation", subject: "#{source_locale}->#{target_locale}") do |attempt|
+        raw_response = perform_client_request(prompt, build_request_context(source_locale, target_locale, attempt))
+        extract_translated_text!(raw_response)
       end
-    rescue RateLimitError
-      # Le client a déjà relancé avec backoff : quelques tentatives de plus suffisent.
-      raise if attempt >= DEFAULT_RETRY_COUNT
-
-      log_rate_limit_hit(source_locale, target_locale)
-      sleep(DEFAULT_RETRY_DELAY)
-      translate_with_retry(text, source_locale, target_locale, attempt + 1, **options)
     end
-
-    # Ces méthodes sont héritées via RequestHelper
-
-    # Log via LoggingHelper
 
     def build_translation_prompt(text, source_locale, target_locale, **options)
       PromptBuilder.translation_prompt(text, source_locale, target_locale,
