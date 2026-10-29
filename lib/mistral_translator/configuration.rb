@@ -8,7 +8,7 @@ module MistralTranslator
                   :on_translation_start, :on_translation_complete, :on_translation_error,
                   :on_rate_limit, :on_batch_complete, :enable_metrics,
                   :ssl_verify_mode, :ssl_ca_file, :ssl_ca_path, :ssl_timeout
-    attr_reader :api_url, :proxy
+    attr_reader :api_url, :proxy, :read_timeout
 
     def initialize
       @api_key = nil
@@ -31,6 +31,9 @@ module MistralTranslator
       @ssl_ca_file = nil        # Path to CA certificate file
       @ssl_ca_path = nil        # Path to CA certificates directory
       @ssl_timeout = 60         # SSL handshake timeout in seconds
+
+      # Attente maximale d'une réponse de l'API, en secondes
+      @read_timeout = 60
 
       # Proxy : nil (aucun), URI ou String, ou :env (HTTPS_PROXY, HTTP_PROXY, NO_PROXY)
       @proxy = nil
@@ -64,6 +67,14 @@ module MistralTranslator
     def proxy=(value)
       Proxy.validate!(value)
       @proxy = value
+    end
+
+    def read_timeout=(seconds)
+      unless seconds.is_a?(Numeric) && seconds.real? && seconds.positive?
+        raise ConfigurationError, "read_timeout must be a positive number of seconds, got: #{seconds.inspect}"
+      end
+
+      @read_timeout = seconds
     end
 
     # Méthodes pour les callbacks

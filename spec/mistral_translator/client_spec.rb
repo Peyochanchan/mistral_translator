@@ -529,6 +529,12 @@ RSpec.describe MistralTranslator::Client do
         expect(pool.max_requests).to eq(100)
       end
 
+      it "uses the read timeout from configuration" do
+        MistralTranslator.configure { |c| c.read_timeout = 180 }
+
+        expect(client.send(:http_pool).read_timeout).to eq(180)
+      end
+
       it "uses SSL timeout from configuration" do
         MistralTranslator.configure { |c| c.ssl_timeout = 45 }
 

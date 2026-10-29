@@ -18,10 +18,22 @@ MistralTranslator.configure do |config|
   config.retry_delays = [2, 4, 8, 16, 32]       # Délais retry (secondes)
   config.enable_metrics = false                  # Suivi des stats
   config.proxy = nil                             # Proxy HTTP (désactivé par défaut)
+  config.read_timeout = 60                       # Attente maximale de la réponse (secondes)
 end
 ```
 
-Configurez la gem avant le premier appel. Les méthodes du module (`MistralTranslator.translate`, `summarize`…) partagent un client, qui lit `api_key`, `model`, `api_url` et `retry_delays` à sa création, lors du premier appel. Pour les changer ensuite, appelez `MistralTranslator.reset_configuration!` puis configurez à nouveau, ou créez un `MistralTranslator::Translator.new` (ou `Summarizer.new`), qui construit son propre client avec la configuration du moment.
+Configurez la gem avant le premier appel. Les méthodes du module (`MistralTranslator.translate`, `summarize`…) partagent un client, qui lit `api_key`, `model`, `api_url`, `retry_delays` et les réglages de connexion (`read_timeout`, `proxy`, SSL) lors du premier appel. Pour les changer ensuite, appelez `MistralTranslator.reset_configuration!` puis configurez à nouveau, ou créez un `MistralTranslator::Translator.new` (ou `Summarizer.new`), qui construit son propre client avec la configuration du moment.
+
+## Délai de réponse
+
+`read_timeout` fixe le temps maximal d'attente de la réponse de l'API, en secondes : 60 par défaut. Un long texte ou un résumé détaillé peut demander plus au modèle ; augmentez-le dans ce cas.
+
+```ruby
+config.read_timeout = 180
+```
+
+- Seul un nombre strictement positif est accepté (entier ou décimal) ; toute autre valeur lève `ConfigurationError` dès l'affectation.
+- Délai dépassé : la requête lève `ApiError` (« Request timeout »).
 
 ## Proxy
 

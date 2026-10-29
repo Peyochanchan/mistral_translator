@@ -166,6 +166,8 @@ MistralTranslator.configure do |config|
   config.enable_metrics = true                     # Enable performance metrics
   config.proxy = :env                              # HTTP proxy: nil (default), "http://host:port", or :env
                                                    # to read HTTPS_PROXY / HTTP_PROXY and NO_PROXY
+  config.read_timeout = 60                         # Seconds to wait for the API's answer (default 60);
+                                                   # raise it for long texts or summaries
 
   # Callbacks for monitoring
   config.on_translation_complete = ->(from, to, orig_len, trans_len, duration) {
@@ -178,7 +180,7 @@ MistralTranslator.configure do |config|
 end
 ```
 
-Configure the gem before the first call. The module-level methods (`MistralTranslator.translate`, `summarize`…) share one client, which reads `api_key`, `model`, `api_url` and `retry_delays` when it is created, on the first call. To change them afterwards, call `MistralTranslator.reset_configuration!` and configure again, or create a `MistralTranslator::Translator.new` (or `Summarizer.new`), which builds its own client from the current configuration.
+Configure the gem before the first call. The module-level methods (`MistralTranslator.translate`, `summarize`…) share one client, which reads `api_key`, `model`, `api_url`, `retry_delays` and the connection settings (`read_timeout`, `proxy`, SSL) on the first call. To change them afterwards, call `MistralTranslator.reset_configuration!` and configure again, or create a `MistralTranslator::Translator.new` (or `Summarizer.new`), which builds its own client from the current configuration.
 
 ## Error Handling
 

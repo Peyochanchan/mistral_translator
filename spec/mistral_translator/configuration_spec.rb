@@ -474,4 +474,28 @@ RSpec.describe MistralTranslator do
       expect { config.proxy = "ftp://proxy" }.to raise_error(MistralTranslator::ConfigurationError)
     end
   end
+
+  describe "#read_timeout" do
+    let(:config) { MistralTranslator::Configuration.new }
+
+    it "waits 60 seconds by default" do
+      expect(config.read_timeout).to eq(60)
+    end
+
+    it "accepts a positive number of seconds" do
+      config.read_timeout = 180
+      expect(config.read_timeout).to eq(180)
+
+      config.read_timeout = 0.5
+      expect(config.read_timeout).to eq(0.5)
+    end
+
+    [0, -1, "180", nil].each do |value|
+      it "rejects #{value.inspect} when it is set" do
+        expect { config.read_timeout = value }
+          .to raise_error(MistralTranslator::ConfigurationError, /read_timeout must be a positive number/)
+        expect(config.read_timeout).to eq(60)
+      end
+    end
+  end
 end

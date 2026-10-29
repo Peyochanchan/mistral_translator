@@ -1,3 +1,9 @@
+## [Unreleased - 0.5.0]
+
+### Added
+
+- `config.read_timeout`: how long to wait for the API's answer, in seconds. Defaults to 60, the value the gem used until now; anything but a positive number raises `ConfigurationError` when it is set.
+
 ## [Unreleased]
 
 Internal cleanup: no change to the documented API or to translation results.
