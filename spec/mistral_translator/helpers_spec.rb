@@ -425,15 +425,15 @@ RSpec.describe MistralTranslator::Helpers do
 
     describe ".levenshtein_distance" do
       it "calculates correct distance" do
-        expect(described_class.send(:levenshtein_distance, "kitten", "sitting")).to eq(3)
-        expect(described_class.send(:levenshtein_distance, "fr", "en")).to eq(2)
-        expect(described_class.send(:levenshtein_distance, "same", "same")).to eq(0)
+        expect(MistralTranslator::LevenshteinHelpers.levenshtein_distance("kitten", "sitting")).to eq(3)
+        expect(MistralTranslator::LevenshteinHelpers.levenshtein_distance("fr", "en")).to eq(2)
+        expect(MistralTranslator::LevenshteinHelpers.levenshtein_distance("same", "same")).to eq(0)
       end
 
       it "handles empty strings" do
-        expect(described_class.send(:levenshtein_distance, "", "hello")).to eq(5)
-        expect(described_class.send(:levenshtein_distance, "hello", "")).to eq(5)
-        expect(described_class.send(:levenshtein_distance, "", "")).to eq(0)
+        expect(MistralTranslator::LevenshteinHelpers.levenshtein_distance("", "hello")).to eq(5)
+        expect(MistralTranslator::LevenshteinHelpers.levenshtein_distance("hello", "")).to eq(5)
+        expect(MistralTranslator::LevenshteinHelpers.levenshtein_distance("", "")).to eq(0)
       end
     end
 

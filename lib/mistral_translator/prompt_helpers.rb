@@ -69,28 +69,5 @@ module MistralTranslator
         HTML_INSTRUCTION
       end
     end
-
-    # Helper pour les instructions de formatage
-    module FormatInstructions
-      def build_json_format_instruction
-        <<~JSON_INSTRUCTION
-
-          FORMAT DE RÉPONSE : Réponds UNIQUEMENT avec un objet JSON valide.
-          Pas de texte avant ou après le JSON.
-        JSON_INSTRUCTION
-      end
-
-      def numbered_texts(texts)
-        texts.map.with_index { |text, i| "#{i + 1}. #{text}" }.join("\n")
-      end
-
-      def build_batch_format_instruction
-        <<~BATCH_INSTRUCTION
-
-          FORMAT DE RÉPONSE : Réponds avec un tableau JSON contenant les traductions dans l'ordre.
-          Chaque élément doit être la traduction correspondante.
-        BATCH_INSTRUCTION
-      end
-    end
   end
 end

@@ -20,75 +20,6 @@ module MistralTranslator
         validate_inputs!(text, from, to)
         raise ArgumentError, "Target languages cannot be empty" if Array(to).empty?
       end
-
-      def validate_batch_inputs!(texts, from, to)
-        raise ArgumentError, "Texts array cannot be nil or empty" if texts.nil? || texts.empty?
-
-        ensure_present!(from, "Source language")
-        ensure_present!(to, "Target language")
-
-        texts.each_with_index do |t, i|
-          ensure_present!(t, "Text at index #{i}")
-        end
-      end
-
-      private
-
-      def ensure_present!(value, field_name)
-        raise ArgumentError, "#{field_name} cannot be nil or empty" if value.nil? || value.to_s.strip.empty?
-      end
-    end
-
-    # Helper pour la gestion des retry
-    module RetryHandler
-      DEFAULT_RETRY_DELAY = 2
-
-      def handle_retry_error(error, source_locale, target_locale, attempt)
-        case error
-        when RateLimitError
-          handle_rate_limit_retry?(source_locale, target_locale, attempt)
-        when ApiError
-          handle_api_error_retry?(error, source_locale, target_locale, attempt)
-        else
-          raise error
-        end
-      end
-
-      # Renvoie true si un retry a été effectué
-      def handle_rate_limit_retry?(source_locale, target_locale, _attempt)
-        log_rate_limit_hit(source_locale, target_locale)
-        sleep(DEFAULT_RETRY_DELAY)
-        # NOTE: retry logic should be handled by the calling method
-        true
-      end
-
-      # Renvoie true si un retry a été effectué
-      def handle_api_error_retry?(error, _source_locale, _target_locale, attempt)
-        raise error unless attempt < 3 && error.message.include?("timeout")
-
-        Logger.warn("API timeout, retrying... (attempt #{attempt + 1})")
-        sleep(DEFAULT_RETRY_DELAY)
-        # NOTE: retry logic should be handled by the calling method
-        true
-      end
-    end
-
-    # Helper pour le logging
-    module LoggingHelper
-      def log_rate_limit_hit(source_locale, target_locale)
-        message = "Rate limit hit for #{source_locale}->#{target_locale}"
-        Logger.warn_once(message, key: "rate_limit_#{source_locale}_#{target_locale}", sensitive: false, ttl: 300)
-      end
-
-      def log_translation_attempt(source_locale, target_locale, attempt)
-        Logger.debug("Translation attempt #{attempt} for #{source_locale}->#{target_locale}")
-      end
-
-      def log_retry(error, attempt, wait_time)
-        default_retry_count = MistralTranslator::Translator::DEFAULT_RETRY_COUNT
-        message = "Translation retry #{attempt}/#{default_retry_count} in #{wait_time}s: #{error.message}"
-        Logger.warn_once(message, key: "translate_retry_#{error.class.name}_#{attempt}", sensitive: false, ttl: 120)
-      end
     end
 
     # Helper pour l'analyse et la détection de langue
@@ -140,17 +71,6 @@ module MistralTranslator
 
     # Helper pour requêtes client et retries
     module RequestHelper
-      def build_prompt_for_retry(text, source_locale, target_locale, **options)
-        build_translation_prompt(
-          text,
-          source_locale,
-          target_locale,
-          context: options[:context],
-          glossary: options[:glossary],
-          preserve_html: options.fetch(:preserve_html, false)
-        )
-      end
-
       def build_request_context(source_locale, target_locale, attempt)
         {
           from_locale: source_locale,
@@ -169,15 +89,6 @@ module MistralTranslator
         return result[:translated] if result && !result[:translated].to_s.empty?
 
         raise EmptyTranslationError
-      end
-
-      def handle_retryable_error!(error, attempt)
-        raise error unless attempt < MistralTranslator::Translator::DEFAULT_RETRY_COUNT
-
-        wait_time = MistralTranslator::Translator::DEFAULT_RETRY_DELAY * (2**attempt)
-        log_retry(error, attempt + 1, wait_time)
-        sleep(wait_time)
-        yield
       end
     end
 

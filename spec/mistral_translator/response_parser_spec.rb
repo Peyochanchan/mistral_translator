@@ -248,84 +248,18 @@ RSpec.describe MistralTranslator::ResponseParser do
     end
   end
 
-  describe ".parse_bulk_translation_response" do
-    let(:valid_bulk_json) do
-      {
-        translations: [
-          {
-            index: 1,
-            source: "Hello",
-            target: "Bonjour"
-          },
-          {
-            index: 2,
-            source: "Goodbye",
-            target: "Au revoir"
-          }
-        ],
-        metadata: {
-          source_language: "en",
-          target_language: "fr",
-          count: 2
-        }
-      }.to_json
-    end
-
-    it "parses bulk translation response correctly" do
-      result = described_class.parse_bulk_translation_response(valid_bulk_json)
-
-      expect(result).to eq([
-                             {
-                               index: 1,
-                               original: "Hello",
-                               translated: "Bonjour"
-                             },
-                             {
-                               index: 2,
-                               original: "Goodbye",
-                               translated: "Au revoir"
-                             }
-                           ])
-    end
-
-    it "raises InvalidResponseError when no translations array" do
-      invalid_json = {
-        content: {
-          target: "Something"
-        }
-      }.to_json
-
-      expect { described_class.parse_bulk_translation_response(invalid_json) }.to raise_error(
-        MistralTranslator::InvalidResponseError,
-        "No translations array in response"
-      )
-    end
-
-    it "returns empty array for invalid input" do
-      expect(described_class.parse_bulk_translation_response(nil)).to eq([])
-      expect(described_class.parse_bulk_translation_response("")).to eq([])
-    end
-
-    it "handles malformed bulk response" do
-      expect { described_class.parse_bulk_translation_response("invalid json") }.to raise_error(
-        MistralTranslator::InvalidResponseError,
-        /No JSON in bulk response/
-      )
-    end
-  end
-
   describe "private methods" do
-    describe ".extract_json_from_content" do
+    describe ".find_json_in_text" do
       it "extracts JSON from mixed content" do
         content = 'Some text {"key": "value"} more text'
-        json = described_class.send(:extract_json_from_content, content)
+        json = described_class.send(:find_json_in_text, content)
         expect(json).to eq('{"key": "value"}')
       end
 
       it "extracts complex JSON" do
         complex_json = '{"nested": {"key": "value"}, "array": [1, 2, 3]}'
         content = "Response: #{complex_json} End"
-        json = described_class.send(:extract_json_from_content, content)
+        json = described_class.send(:find_json_in_text, content)
         expect(json).to eq(complex_json)
       end
 
@@ -348,12 +282,12 @@ RSpec.describe MistralTranslator::ResponseParser do
           }
         }'
         content = "Response: #{complex_json} End"
-        json = described_class.send(:extract_json_from_content, content)
+        json = described_class.send(:find_json_in_text, content)
         expect(json).to eq(complex_json)
       end
 
       it "returns nil when no JSON found" do
-        json = described_class.send(:extract_json_from_content, "No JSON here")
+        json = described_class.send(:find_json_in_text, "No JSON here")
         expect(json).to be_nil
       end
     end
@@ -426,14 +360,18 @@ RSpec.describe MistralTranslator::ResponseParser do
         }
       end
 
-      it "keeps summary and bulk responses out of error messages" do
+      it "keeps summary responses out of error messages" do
         expect { described_class.parse_summary_response("Texte confidentiel") }.to raise_error(
           MistralTranslator::InvalidResponseError
         ) { |error| expect(error.message).not_to include("confidentiel") }
+      end
 
-        expect { described_class.parse_bulk_translation_response("Texte confidentiel") }.to raise_error(
-          MistralTranslator::InvalidResponseError
-        ) { |error| expect(error.message).not_to include("confidentiel") }
+      it "drops the parser error, which quotes the response, from the cause chain" do
+        ["Texte confidentiel", "Texte confidentiel {\"target\": ", "{#{"{" * 100_000}"].each do |raw|
+          expect { described_class.parse_translation_response(raw) }.to raise_error(
+            MistralTranslator::InvalidResponseError
+          ) { |error| expect(error.cause).to be_nil }
+        end
       end
 
       it "rejects content that is too large" do
@@ -446,8 +384,7 @@ RSpec.describe MistralTranslator::ResponseParser do
       end
 
       it "handles malformed JSON that could cause infinite loops" do
-        # Créer un JSON qui passera le premier parsing mais causera des problèmes dans find_json_in_text
-        # En entourant le JSON malformé de texte pour forcer l'utilisation de find_json_in_text
+        # Du texte autour du JSON force la recherche dans le texte, plafonnée
         malformed_json = "Some text before {#{"{" * 50_000}#{"}" * 50_000}} some text after"
 
         expect { described_class.parse_translation_response(malformed_json) }.to raise_error(

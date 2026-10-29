@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module MistralTranslator
-  VERSION = "0.4.0"
+  VERSION = "0.5.0"
 
   # Informations additionnelles sur la gem
   API_VERSION = "v1"

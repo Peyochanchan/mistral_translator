@@ -9,7 +9,6 @@ module MistralTranslator
   module PromptBuilder
     extend PromptHelpers::ContextBuilder
     extend PromptHelpers::HtmlInstructions
-    extend PromptHelpers::FormatInstructions
     extend PromptMetadataHelpers
 
     class << self
@@ -48,55 +47,6 @@ module MistralTranslator
           }
         PROMPT
       end
-
-      # rubocop:disable Metrics/MethodLength
-      def bulk_translation_prompt(texts, source_language, target_language, **options)
-        source_name = LocaleHelper.prompt_language_name(source_language)
-        target_name = LocaleHelper.prompt_language_name(target_language)
-
-        context_section = build_context_section(options[:context], options[:glossary])
-        html_instruction = options[:preserve_html] ? build_html_preservation_instruction : ""
-
-        # Extraire les valeurs pour les métadonnées
-        context = options[:context]
-        glossary = options[:glossary]
-        preserve_html = options[:preserve_html]
-
-        Prompt.new(instructions: <<~PROMPT, text: numbered_texts(texts))
-          Tu es un traducteur professionnel. Traduis les textes fournis, numérotés.
-          Langue source : #{source_name}. Langue cible : #{target_name}.
-          #{context_section}
-          RÈGLES :
-          - Traduis fidèlement chaque texte sans ajouter d'informations
-          - Conserve le style, ton et format originaux#{html_instruction}
-          - Maintiens la cohérence terminologique entre tous les textes
-          - #{Prompt::DATA_RULE}
-          - Réponds UNIQUEMENT en JSON valide
-
-          FORMAT OBLIGATOIRE :
-          {
-            "translations": [
-              {
-                "index": 1,
-                "source": "texte original 1",
-                "target": "texte traduit 1"
-              },
-              {
-                "index": 2,
-                "source": "texte original 2",
-                "target": "texte traduit 2"
-              }
-            ],
-            "metadata": {
-              "source_language": "#{source_language}",
-              "target_language": "#{target_language}",
-              "count": #{texts.length},
-              "operation": "bulk_translation"#{build_metadata_additions(context, glossary, preserve_html)}
-            }
-          }
-        PROMPT
-      end
-      # rubocop:enable Metrics/MethodLength
 
       def summary_prompt(text, max_words, target_language = "fr", context: nil, style: nil)
         target_name = LocaleHelper.prompt_language_name(target_language)
@@ -163,50 +113,6 @@ module MistralTranslator
               "target_language": "#{target_language}",
               "word_count": #{max_words},
               "operation": "summarization_and_translation"#{build_summary_metadata_additions(context, style)}
-            }
-          }
-        PROMPT
-      end
-
-      def tiered_summary_prompt(text, target_language, **options)
-        target_name = LocaleHelper.prompt_language_name(target_language)
-
-        context_section = build_summary_context_section(options[:context], options[:style])
-        style_instruction = build_style_instruction(options[:style])
-
-        # Extraire les valeurs pour les métadonnées
-        context = options[:context]
-        style = options[:style]
-
-        Prompt.new(instructions: <<~PROMPT, text: text)
-          Tu es un rédacteur professionnel. Crée trois résumés du texte fourni en #{target_name}.
-          #{context_section}
-          RÈGLES :
-          - Résume fidèlement sans ajouter d'informations
-          - Respecte strictement les longueurs demandées
-          - Court: #{options[:short]} mots, Moyen: #{options[:medium]} mots, Long: #{options[:long]} mots#{style_instruction}
-          - #{Prompt::DATA_RULE}
-          - Réponds UNIQUEMENT en JSON valide
-
-          FORMAT OBLIGATOIRE :
-          {
-            "content": {
-              "source": "texte original",
-              "summaries": {
-                "short": "résumé court (#{options[:short]} mots)",
-                "medium": "résumé moyen (#{options[:medium]} mots)",
-                "long": "résumé long (#{options[:long]} mots)"
-              }
-            },
-            "metadata": {
-              "source_language": "original",
-              "target_language": "#{target_language}",
-              "summaries": {
-                "short": #{options[:short]},
-                "medium": #{options[:medium]},
-                "long": #{options[:long]}
-              },
-              "operation": "tiered_summarization"#{build_summary_metadata_additions(context, style)}
             }
           }
         PROMPT

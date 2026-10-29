@@ -37,7 +37,7 @@ MistralTranslator.translate("Bonjour le monde", from: "fr", to: "en")
 
 ## Supported Languages
 
-All 182 ISO 639-1 languages named by CLDR (`fr`, `en`, `es`, `de`, `ja`, `br`, `wo`, `mg`…). `MistralTranslator.supported_locales` lists them, and English or French names are accepted in place of codes (`"German"`, `"allemand"`).
+All 182 ISO 639-1 languages named by CLDR (`fr`, `en`, `es`, `de`, `ja`, `br`, `wo`, `mg`…). `MistralTranslator.supported_locales` lists them, and English or French names are accepted in place of codes (`"German"`, `"allemand"`). The list and the names come from the CLDR data of macOS 27.2, through `bin/generate_languages` (2026-10-28).
 
 Translation quality depends on the Mistral model: excellent for widely used languages, weaker for rare ones. Check the output before relying on a rare language.
 
@@ -166,6 +166,9 @@ MistralTranslator.configure do |config|
   config.enable_metrics = true                     # Enable performance metrics
   config.proxy = :env                              # HTTP proxy: nil (default), "http://host:port", or :env
                                                    # to read HTTPS_PROXY / HTTP_PROXY and NO_PROXY
+  config.open_timeout = 60                         # Seconds to open the connection (default 60)
+  config.read_timeout = 60                         # Seconds to wait for the API's answer (default 60);
+                                                   # raise it for long texts or summaries
 
   # Callbacks for monitoring
   config.on_translation_complete = ->(from, to, orig_len, trans_len, duration) {
@@ -177,6 +180,8 @@ MistralTranslator.configure do |config|
   }
 end
 ```
+
+Configure the gem before the first call. The module-level methods (`MistralTranslator.translate`, `summarize`…) share one client, which reads `api_key`, `model`, `api_url`, `retry_delays` and the connection settings (`read_timeout`, `proxy`, SSL) on the first call. To change them afterwards, call `MistralTranslator.reset_configuration!` and configure again, or create a `MistralTranslator::Translator.new` (or `Summarizer.new`), which builds its own client from the current configuration.
 
 ## Error Handling
 

@@ -16,6 +16,11 @@ module MistralTranslator
       %w[content original], %w[original]
     ].freeze
 
+    # Garde-fous contre les réponses démesurées
+    MAX_CONTENT_SIZE = 1_000_000
+    MAX_SCAN_LENGTH = 100_000
+    BRACE_DEPTH = { "{" => 1, "}" => -1 }.freeze
+
     class << self
       def parse_translation_response(raw_content)
         return nil if raw_content.nil? || raw_content.empty?
@@ -56,25 +61,6 @@ module MistralTranslator
         end
       end
 
-      def parse_bulk_translation_response(raw_content)
-        return [] if raw_content.nil? || raw_content.empty?
-
-        with_response_errors("bulk", raw_content) do
-          translations = parse_response_json(raw_content, "bulk")["translations"]
-          unless translations.is_a?(Array)
-            raise InvalidResponseError.new("No translations array in response", raw_content)
-          end
-
-          translations.map do |translation|
-            {
-              index: translation["index"],
-              original: translation["source"],
-              translated: translation["target"]
-            }
-          end
-        end
-      end
-
       def parse_json_content(json_content)
         JSON.parse(json_content)
       rescue JSON::ParserError
@@ -111,118 +97,75 @@ module MistralTranslator
         raise InvalidResponseError.new("Error processing #{label} response (#{e.class})", raw_content), cause: nil
       end
 
+      # Le mode JSON de l'API renvoie un objet seul, lu tel quel. Sinon, on lit le premier objet
+      # trouvé dans le texte, en réparant les continuations de ligne.
       def parse_response_json(raw_content, label)
-        json_content = extract_json_from_content(raw_content)
-        raise InvalidResponseError.new("No JSON in #{label} response", raw_content) unless json_content
-
-        data = parse_json_content(json_content)
+        ensure_content_size!(raw_content)
+        data = parse_whole_or_embedded(raw_content, label)
         raise InvalidResponseError.new("Unexpected JSON in #{label} response", raw_content) unless data.is_a?(Hash)
 
         data
+      end
+
+      def ensure_content_size!(content)
+        return if content.length <= MAX_CONTENT_SIZE
+
+        raise InvalidResponseError, "Response content too large (#{content.length} bytes, max: #{MAX_CONTENT_SIZE})"
+      end
+
+      def parse_whole_or_embedded(raw_content, label)
+        JSON.parse(raw_content)
       rescue JSON::ParserError
-        details = "raw_len=#{raw_content.length} json_len=#{json_content&.length}"
+        json_content = find_json_in_text(raw_content)
+        raise InvalidResponseError.new("No JSON in #{label} response", raw_content), cause: nil unless json_content
+
+        parse_embedded_json(json_content, raw_content, label)
+      end
+
+      def parse_embedded_json(json_content, raw_content, label)
+        parse_json_content(json_content)
+      rescue JSON::ParserError
+        details = "raw_len=#{raw_content.length} json_len=#{json_content.length}"
         Logger.debug_if_verbose("JSON parse failed: #{details}", sensitive: false)
         raise InvalidResponseError.new("Invalid JSON in #{label} response (#{details})", raw_content), cause: nil
       end
 
-      def extract_json_from_content(content)
-        return nil if content.nil? || content.empty?
-
-        # Limiter la taille pour éviter les attaques DoS
-        max_content_size = 1_000_000 # 1MB max
-        if content.length > max_content_size
-          raise InvalidResponseError, "Response content too large (#{content.length} bytes, max: #{max_content_size})"
-        end
-
-        # Essayer d'abord de parser directement le contenu comme JSON
-        begin
-          JSON.parse(content)
-          content
-        rescue JSON::ParserError
-          # Si ça échoue, chercher le JSON dans la réponse (peut être entouré de texte)
-          # Utiliser une approche plus robuste pour les JSON complexes
-          find_json_in_text(content)
-        end
-      end
-
+      # Le premier objet du texte, de sa première accolade à celle qui la referme.
       def find_json_in_text(text)
-        start_pos = find_json_start(text)
-        return nil unless start_pos
-
-        parse_json_until_end(text, start_pos)
+        start = text.index("{")
+        finish = closing_brace_index(text, start) if start
+        text[start..finish] if finish
       end
 
-      def find_json_start(text)
-        text.index("{")
-      end
+      # Les accolades des chaînes ne comptent pas ; le parcours est plafonné.
+      def closing_brace_index(text, start)
+        depth = 0
+        in_string = false
+        escaped = false
 
-      def parse_json_until_end(text, start_pos)
-        parser_state = JsonParserState.new
-        max_iterations = 100_000
+        (start...text.length).each do |index|
+          ensure_scan_length!(index - start)
+          char = text[index]
 
-        (start_pos...text.length).each do |i|
-          parser_state.increment_iterations
-          if parser_state.iterations > max_iterations
-            raise InvalidResponseError,
-                  "JSON parsing exceeded maximum iterations"
+          if escaped
+            escaped = false
+          elsif char == "\\"
+            escaped = true
+          elsif char == '"'
+            in_string = !in_string
+          elsif !in_string
+            depth += BRACE_DEPTH.fetch(char, 0)
+            return index if depth.zero?
           end
-
-          char = text[i]
-          parser_state.process_character(char)
-
-          return text[start_pos..i] if parser_state.found_complete_json?
         end
 
         nil
       end
 
-      # Helper class pour gérer l'état du parsing JSON
-      class JsonParserState
-        attr_reader :iterations
+      def ensure_scan_length!(scanned)
+        return if scanned < MAX_SCAN_LENGTH
 
-        def initialize
-          @brace_count = 0
-          @in_string = false
-          @escape_next = false
-          @iterations = 0
-        end
-
-        def increment_iterations
-          @iterations += 1
-        end
-
-        def process_character(char)
-          return handle_escape_character if @escape_next
-          return handle_backslash_character if char == "\\"
-          return handle_quote_character(char) if char == '"' && !@escape_next
-          return if @in_string
-
-          handle_brace_character(char)
-        end
-
-        def handle_escape_character
-          @escape_next = false
-        end
-
-        def handle_backslash_character
-          @escape_next = true
-        end
-
-        def handle_quote_character(_char)
-          @in_string = !@in_string
-        end
-
-        def handle_brace_character(char)
-          if char == "{"
-            @brace_count += 1
-          elsif char == "}"
-            @brace_count -= 1
-          end
-        end
-
-        def found_complete_json?
-          @brace_count.zero?
-        end
+        raise InvalidResponseError, "JSON parsing exceeded maximum iterations", cause: nil
       end
 
       # Le texte traduit ou résumé : toujours une String non vide, jamais un objet ou un tableau.

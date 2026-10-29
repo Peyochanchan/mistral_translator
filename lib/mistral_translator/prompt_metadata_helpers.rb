@@ -32,10 +32,5 @@ module MistralTranslator
 
       additions.any? ? ",\n    #{additions.join(",\n    ")}" : ""
     end
-
-    def log_prompt_generation(prompt_type, source_locale, target_locale)
-      message = "Generated #{prompt_type} prompt for #{source_locale} -> #{target_locale}"
-      Logger.debug_if_verbose(message, sensitive: false)
-    end
   end
 end

@@ -440,6 +440,7 @@ RSpec.describe MistralTranslator::Adapters do
 
     describe "#translate_to_all_locales" do
       before do
+        allow(service).to receive(:sleep)
         allow(mock_adapter).to receive_messages(
           detect_source_locale: :fr,
           get_translatable_content: "Content français",

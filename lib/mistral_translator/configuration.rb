@@ -1,14 +1,17 @@
 # frozen_string_literal: true
 
 require_relative "proxy"
+require_relative "deprecated_options"
 
 module MistralTranslator
   class Configuration
-    attr_accessor :api_key, :model, :default_max_tokens, :default_temperature, :retry_delays,
+    include DeprecatedOptions
+
+    attr_accessor :api_key, :model, :retry_delays,
                   :on_translation_start, :on_translation_complete, :on_translation_error,
                   :on_rate_limit, :on_batch_complete, :enable_metrics,
-                  :ssl_verify_mode, :ssl_ca_file, :ssl_ca_path, :ssl_timeout
-    attr_reader :api_url, :proxy
+                  :ssl_verify_mode, :ssl_ca_file, :ssl_ca_path
+    attr_reader :api_url, :proxy, :open_timeout, :read_timeout
 
     def initialize
       @api_key = nil
@@ -30,7 +33,10 @@ module MistralTranslator
       @ssl_verify_mode = :peer  # :peer, :none, or OpenSSL constant
       @ssl_ca_file = nil        # Path to CA certificate file
       @ssl_ca_path = nil        # Path to CA certificates directory
-      @ssl_timeout = 60         # SSL handshake timeout in seconds
+
+      # Délais en secondes : ouverture de la connexion (TCP puis TLS), puis attente de la réponse
+      @open_timeout = 60
+      @read_timeout = 60
 
       # Proxy : nil (aucun), URI ou String, ou :env (HTTPS_PROXY, HTTP_PROXY, NO_PROXY)
       @proxy = nil
@@ -64,6 +70,14 @@ module MistralTranslator
     def proxy=(value)
       Proxy.validate!(value)
       @proxy = value
+    end
+
+    def open_timeout=(seconds)
+      @open_timeout = positive_seconds!(:open_timeout, seconds)
+    end
+
+    def read_timeout=(seconds)
+      @read_timeout = positive_seconds!(:read_timeout, seconds)
     end
 
     # Méthodes pour les callbacks
@@ -175,6 +189,12 @@ module MistralTranslator
     end
 
     private
+
+    def positive_seconds!(name, seconds)
+      return seconds if seconds.is_a?(Numeric) && seconds.real? && seconds.positive?
+
+      raise ConfigurationError, "#{name} must be a positive number of seconds, got: #{seconds.inspect}"
+    end
 
     def validate_api_url(url)
       uri = parse_uri(url)

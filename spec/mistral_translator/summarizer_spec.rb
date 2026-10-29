@@ -8,6 +8,8 @@ RSpec.describe MistralTranslator::Summarizer do
   # Configuration pour debug
   before do
     ENV["MISTRAL_TRANSLATOR_DEBUG"] = "true"
+    # Pas de vraie attente entre les requêtes et les relances
+    allow(summarizer).to receive(:sleep)
   end
 
   after do
@@ -144,7 +146,6 @@ RSpec.describe MistralTranslator::Summarizer do
       end
 
       it "gives up after a few RateLimitError retries" do
-        allow(summarizer).to receive(:sleep)
         call_count = 0
         allow(mock_client).to receive(:complete) do
           call_count += 1
@@ -195,7 +196,6 @@ RSpec.describe MistralTranslator::Summarizer do
     end
 
     it "retries an unusable response, then raises instead of falling back" do
-      allow(summarizer).to receive(:sleep)
       allow(mock_client).to receive(:complete).and_return("Pas de JSON")
 
       expect { summarizer.summarize_and_translate(long_text, from: "fr", to: "en") }
@@ -426,12 +426,12 @@ RSpec.describe MistralTranslator::Summarizer do
 
     describe "logging methods" do
       describe "#log_debug" do
-        it "logs debug messages when debug enabled" do
-          ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] = "true"
-          expect { summarizer.send(:log_debug, "test message") }.to output(
-            /\[MistralTranslator\] test message/
-          ).to_stdout
-          ENV["MISTRAL_TRANSLATOR_TEST_OUTPUT"] = nil
+        it "logs debug messages through the logger" do
+          allow(MistralTranslator::Logger).to receive(:debug_if_verbose)
+
+          summarizer.send(:log_debug, "test message")
+
+          expect(MistralTranslator::Logger).to have_received(:debug_if_verbose).with("test message", sensitive: false)
         end
       end
     end

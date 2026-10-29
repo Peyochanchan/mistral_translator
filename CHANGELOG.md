@@ -1,4 +1,36 @@
-## [Unreleased]
+## [0.5.0] - 2026-10-29
+
+### Added
+
+- `config.read_timeout`: how long to wait for the API's answer, in seconds. Defaults to 60, the value the gem used until now; anything but a positive number raises `ConfigurationError` when it is set.
+- `config.open_timeout`: how long to wait for the connection to open (TCP, then TLS), in seconds. Defaults to 60, validated the same way.
+
+### Changed
+
+No change to translation results:
+
+- Translations and summaries share one retry policy, with the same delays and counts as before. Their retry log lines now share one format, such as `translation retry 1/3 for fr->en in 2s: …`.
+- The `Summarizer` no longer prints to stdout when `MISTRAL_TRANSLATOR_TEST_OUTPUT` is set.
+- A response is parsed once instead of twice.
+
+### Deprecated
+
+These options still work, print a warning, and will be removed in 1.0:
+
+- `config.ssl_timeout`, the former name of `open_timeout`, which it still sets. It is now validated like `open_timeout`, so `nil` (no limit) is rejected.
+- `config.default_max_tokens` and `config.default_temperature`, which the gem never read.
+
+### Removed
+
+Undocumented code that the gem never called:
+
+- the `HelpersExtensions` copies of `translate_with_progress`, `translate_multi_style` and `find_locale_suggestions`, which `Helpers` redefines;
+- `TranslatorHelpers::RetryHandler`, `TranslatorHelpers::LoggingHelper` and `InputValidator#validate_batch_inputs!`;
+- `PromptBuilder.bulk_translation_prompt`, `PromptBuilder.tiered_summary_prompt`, `PromptHelpers::FormatInstructions`, `ResponseParser.parse_bulk_translation_response` and `ResponseParser::JsonParserState`.
+
+### Security
+
+- When the scan for a JSON object inside text reached its limit, the error kept the `JSON::ParserError` as its `cause`, and that error quotes the response.
 
 ## [0.4.0] - 2026-10-28
 

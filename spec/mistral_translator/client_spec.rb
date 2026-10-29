@@ -194,6 +194,7 @@ RSpec.describe MistralTranslator::Client do
         MistralTranslator.configure do |config|
           config.on_rate_limit = rate_limit_callback
         end
+        allow(client).to receive(:sleep)
       end
 
       it "retries on rate limit and succeeds" do
@@ -528,14 +529,16 @@ RSpec.describe MistralTranslator::Client do
         expect(pool.max_requests).to eq(100)
       end
 
-      it "uses SSL timeout from configuration" do
-        MistralTranslator.configure { |c| c.ssl_timeout = 45 }
+      it "uses the read timeout from configuration" do
+        MistralTranslator.configure { |c| c.read_timeout = 180 }
 
-        # Reset pool to pick up new config
-        client.instance_variable_set(:@http_pool, nil)
+        expect(client.send(:http_pool).read_timeout).to eq(180)
+      end
 
-        pool = client.send(:http_pool)
-        expect(pool.open_timeout).to eq(45)
+      it "uses the open timeout from configuration" do
+        MistralTranslator.configure { |c| c.open_timeout = 45 }
+
+        expect(client.send(:http_pool).open_timeout).to eq(45)
       end
 
       it "reuses the same pool instance" do
