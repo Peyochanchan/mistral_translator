@@ -8,10 +8,13 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    addressable (2.9.0)
+    addressable (2.9.2)
       public_suffix (>= 2.0.2, < 8.0)
     ast (2.4.3)
     bigdecimal (3.2.2)
+    bundler-audit (0.9.3)
+      bundler (>= 1.2.0)
+      thor (~> 1.0)
     connection_pool (2.5.5)
     crack (1.0.0)
       bigdecimal
@@ -70,6 +73,7 @@ GEM
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
     ruby-progressbar (1.13.0)
+    thor (1.5.0)
     unicode-display_width (3.3.0)
       unicode-emoji (~> 4.3)
     unicode-emoji (4.3.0)
@@ -85,6 +89,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  bundler-audit (~> 0.9)
   mistral_translator!
   rake (~> 13.0)
   rspec (~> 3.0)
