@@ -229,15 +229,15 @@ module MistralTranslator
         end
       end
 
-      # Avec 182 codes de deux lettres, presque toute chaîne est « proche » d'un code :
-      # on suggère à partir d'un nom de langue (exact ou mal orthographié) ou d'un code
-      # à trois lettres (ISO 639-2 comme "fre", ou faute de frappe comme "enn").
+      # Avec des centaines de codes de deux et trois lettres, presque toute chaîne est
+      # « proche » d'un code : on suggère à partir d'un nom de langue (exact, ambigu ou
+      # mal orthographié) ou d'un code à trois lettres (ISO 639-2 comme "fre").
       def find_locale_suggestions(invalid_locale)
         return [] unless invalid_locale.is_a?(String)
 
         input = invalid_locale.strip.downcase
-        named = LocaleHelper.language_to_locale(input)
-        return [named] if LocaleHelper.locale_supported?(named)
+        locale = Locale.find(input)
+        return [locale.to_s] if locale
 
         by_code = input.length == 3 ? LocaleHelper.supported_locales.select { |code| input.start_with?(code) } : []
         by_name = LocaleHelper::LANGUAGES.select do |_code, names|

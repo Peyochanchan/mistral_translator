@@ -99,6 +99,15 @@ RSpec.describe MistralTranslator::Translator do
         result = translator.translate("Hello", from: "en", to: "en")
         expect(result).to eq("Hello")
       end
+
+      it "translates between two variants of a language" do
+        allow(mock_client).to receive(:complete).and_return('{"content": {"target": "Courriel"}}')
+
+        expect(translator.translate("Email", from: "fr", to: "fr-CA")).to eq("Courriel")
+        expect(mock_client).to have_received(:complete) do |prompt, **|
+          expect(prompt.instructions).to include("français (Canada) (fr-CA)")
+        end
+      end
     end
 
     context "with API errors and retries" do
@@ -251,6 +260,12 @@ RSpec.describe MistralTranslator::Translator do
       result = translator.translate_to_multiple("Hello", from: "en", to: "fr")
 
       expect(result).to eq({ "fr" => "Bonjour" })
+    end
+
+    it "keys each translation by its canonical locale, region included" do
+      result = translator.translate_to_multiple("Hello", from: "en", to: %w[pt_br pt-PT])
+
+      expect(result).to eq({ "pt-BR" => "Bonjour", "pt-PT" => "Hola" })
     end
 
     # Nouveau test pour le mode batch
@@ -639,8 +654,13 @@ RSpec.describe MistralTranslator::Translator do
         expect(result).to eq("fr")
       end
 
+      it "keeps only the language of a regional detection" do
+        response = '{"metadata": {"detected_language": "fr-FR"}}'
+        expect(translator.send(:parse_language_detection, response)).to eq("fr")
+      end
+
       it "raises for an unsupported detected language" do
-        response = '{"metadata": {"detected_language": "klingon"}}'
+        response = '{"metadata": {"detected_language": "dothraki"}}'
 
         expect { translator.send(:parse_language_detection, response) }
           .to raise_error(MistralTranslator::InvalidResponseError)

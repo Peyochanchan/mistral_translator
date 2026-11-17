@@ -1,45 +1,31 @@
 # frozen_string_literal: true
 
-require "json"
-
 module MistralTranslator
+  # Fonctions historiques sur les locales, qui délèguent à Locale.
   module LocaleHelper
-    # Codes ISO 639-1 et noms issus de CLDR, générés par bin/generate_languages
-    LANGUAGES = JSON.parse(File.read(File.expand_path("data/languages.json", __dir__)), freeze: true)
+    # Langues CLDR, générées par bin/generate_languages
+    LANGUAGES = Locale::LANGUAGES
 
     # Nom de chaque langue dans sa propre langue
     SUPPORTED_LANGUAGES = LANGUAGES.transform_values { |names| names["native"].downcase }.freeze
 
-    # Noms anglais et français acceptés à la place du code
-    LANGUAGE_ALIASES = LANGUAGES.flat_map do |code, names|
-      [[names["en"].downcase, code], [names["fr"].downcase, code]]
-    end.to_h.freeze
+    # Noms acceptés à la place du code
+    LANGUAGE_ALIASES = Locale::NAMES
 
     class << self
       def locale_to_language(locale)
-        locale_code = normalize_locale(locale)
-        SUPPORTED_LANGUAGES[locale_code] || locale_code.to_s
+        found = Locale.find(locale)
+        found ? SUPPORTED_LANGUAGES[found.language] : locale.to_s
       end
 
-      # Nom français suivi du code, pour les prompts : « anglais (en) »
+      # Nom français suivi du code, pour les prompts : « portugais (Brésil) (pt-BR) »
       def prompt_language_name(locale)
-        locale_code = normalize_locale(locale)
-        name = LANGUAGES.dig(locale_code, "fr")
-        name ? "#{name} (#{locale_code})" : locale_code
+        Locale.find(locale)&.prompt_name || locale.to_s
       end
 
       def language_to_locale(language)
         normalized_language = language.to_s.downcase.strip
-
-        # Vérifier d'abord les alias
-        return LANGUAGE_ALIASES[normalized_language] if LANGUAGE_ALIASES.key?(normalized_language)
-
-        # Recherche directe par valeur
-        found_locale = SUPPORTED_LANGUAGES.find { |_, lang| lang.downcase == normalized_language }
-        return found_locale[0] if found_locale
-
-        # Retourne la langue telle quelle si pas trouvée
-        normalized_language
+        LANGUAGE_ALIASES.fetch(normalized_language, normalized_language)
       end
 
       def supported_locales
@@ -51,16 +37,15 @@ module MistralTranslator
       end
 
       def locale_supported?(locale)
-        SUPPORTED_LANGUAGES.key?(normalize_locale(locale))
+        !Locale.find(locale).nil?
       end
 
+      # Forme canonique de la locale ("pt-BR") ; UnsupportedLanguageError si elle est inconnue
       def validate_locale!(locale)
-        normalized = normalize_locale(locale)
-        raise UnsupportedLanguageError, normalized unless locale_supported?(normalized)
-
-        normalized
+        Locale.parse(locale).to_s
       end
 
+      # Sous-étiquette de langue seule, sans vérification : "fr-FR" → "fr"
       def normalize_locale(locale)
         return "" if locale.nil? || locale.to_s.empty?
 
