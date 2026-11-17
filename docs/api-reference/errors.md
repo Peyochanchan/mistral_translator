@@ -290,21 +290,21 @@ puts result  # => "" (sans erreur)
 
 ```ruby
 MistralTranslator.supported_locales
-# => ["fr", "en", "es", "pt", "de", "it", "nl", "ru", "mg", "ja", "ko", "zh", "ar"]
+# => ["aa", "ab", "ace", "acf", ..., "zun", "zza"] (619 langues)
 ```
 
 **Exemple:**
 
 ```ruby
 begin
-  MistralTranslator.translate("Hello", from: "en", to: "klingon")
+  MistralTranslator.translate("Hello", from: "en", to: "dothraki")
 rescue MistralTranslator::UnsupportedLanguageError => e
   puts "Unsupported language: #{e.message}"
   puts "Language requested: #{e.language}"
-  # => "klingon"
+  # => "dothraki"
 
   # Obtenir des suggestions :
-  suggestions = MistralTranslator::Helpers.validate_locale_with_suggestions("klingon")
+  suggestions = MistralTranslator::Helpers.validate_locale_with_suggestions("dothraki")
   if suggestions[:suggestions].any?
     puts "Did you mean: #{suggestions[:suggestions].join(', ')}?"
   end
@@ -315,7 +315,7 @@ end
 
 - Utiliser `MistralTranslator.supported_locales` pour voir les langues disponibles
 - Utiliser le helper de validation avec suggestions
-- Normaliser les codes de langue (ex: "français" → "fr")
+- Vérifier le code : `"pt-BR"`, `"zh-Hant"`, `"haw"` ou un nom comme `"allemand"` sont acceptés ; les variantes et extensions BCP 47 (`"ca-ES-valencia"`) ne le sont pas
 
 ---
 

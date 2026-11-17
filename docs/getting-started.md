@@ -39,20 +39,24 @@ MistralTranslator.translate_auto("Guten Tag", to: "fr")
 ## 🌍 Langues Supportées
 
 ```ruby
-# Les 182 langues ISO 639-1 sont disponibles
+# 619 langues : codes ISO 639-1 (deux lettres) et ISO 639-3 (trois lettres)
 MistralTranslator::LocaleHelper.supported_locales
-# => ["aa", "ab", "ae", "af", ..., "zh", "zu"]
+# => ["aa", "ab", "ace", "acf", ..., "zun", "zza"]
 
-# Les noms anglais et français sont acceptés à la place du code
-MistralTranslator::LocaleHelper.language_to_locale("allemand")
-# => "de"
+# Une écriture et une région précisent la variante
+MistralTranslator.translate("Bonjour", from: "fr", to: "pt-BR")
+MistralTranslator.translate("Bonjour", from: "fr", to: "zh-Hant-TW")
+
+# Les noms de langue et les codes ISO 639-3 sont acceptés à la place du code
+MistralTranslator::Locale.parse("allemand").to_s # => "de"
+MistralTranslator::Locale.parse("hat").to_s      # => "ht"
 
 # Vérifier une langue spécifique
 MistralTranslator::LocaleHelper.locale_supported?("ja")
 # => true
 ```
 
-La liste et les noms viennent des données CLDR de macOS 27.2, via `bin/generate_languages` (2026-10-28).
+Les langues, écritures et régions viennent des données CLDR de macOS 27.2, via `bin/generate_languages` (2026-11-17). Les variantes et extensions BCP 47 (`ca-ES-valencia`, `en-US-u-ca-gregory`) ne sont pas acceptées.
 
 La qualité de traduction dépend du modèle Mistral : excellente pour les langues les plus parlées, plus faible pour les langues rares. Vérifiez le résultat avant de vous appuyer sur une langue rare.
 

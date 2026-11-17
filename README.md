@@ -37,7 +37,16 @@ MistralTranslator.translate("Bonjour le monde", from: "fr", to: "en")
 
 ## Supported Languages
 
-All 182 ISO 639-1 languages named by CLDR (`fr`, `en`, `es`, `de`, `ja`, `br`, `wo`, `mg`…). `MistralTranslator.supported_locales` lists them, and English or French names are accepted in place of codes (`"German"`, `"allemand"`). The list and the names come from the CLDR data of macOS 27.2, through `bin/generate_languages` (2026-10-28).
+Every language CLDR names, 619 in all: the 182 ISO 639-1 languages (`fr`, `en`, `ja`, `ht`, `wo`…) and the languages that only have an ISO 639-3 code (`haw`, `yue`, `fil`…). `MistralTranslator.supported_locales` lists them.
+
+A locale can add a script and a region (`pt-BR`, `zh-Hant-TW`, `es-419`): the model is told which variant to write, and results are keyed by that locale. ISO 639-3 codes (`hat` for `ht`) and English, French or native names (`"German"`, `"allemand"`) are accepted in place of codes. Variants and extensions (`ca-ES-valencia`, `en-US-u-ca-gregory`) are not.
+
+```ruby
+MistralTranslator.translate(text, from: "fr", to: "pt-BR")
+MistralTranslator::Locale.parse("zh_hant_tw").to_s # => "zh-Hant-TW"
+```
+
+The languages, scripts and regions come from the CLDR data of macOS 27.2, through `bin/generate_languages` (2026-11-17).
 
 Translation quality depends on the Mistral model: excellent for widely used languages, weaker for rare ones. Check the output before relying on a rare language.
 

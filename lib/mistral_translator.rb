@@ -3,6 +3,7 @@
 require_relative "mistral_translator/version"
 require_relative "mistral_translator/errors"
 require_relative "mistral_translator/configuration"
+require_relative "mistral_translator/locale"
 require_relative "mistral_translator/locale_helper"
 require_relative "mistral_translator/prompt_helpers"
 require_relative "mistral_translator/prompt_builder"

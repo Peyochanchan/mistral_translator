@@ -298,7 +298,7 @@ Remet la configuration aux valeurs par défaut.
 
 Retourne la liste des codes de langue supportés.
 
-**Retour:** Array<String> - Liste des 182 codes ISO 639-1 (ex: ["aa", "ab", ..., "zu"])
+**Retour:** Array<String> - Les 619 codes de langue, ISO 639-1 et ISO 639-3 (ex: ["aa", "ab", "ace", ..., "zza"]). Une locale peut y ajouter une écriture et une région (`"zh-Hant-TW"`).
 
 ### `supported_languages`
 
@@ -467,7 +467,7 @@ Validation de locale avec suggestions.
 **Retour:** Hash
 
 - `valid` (Boolean) - Locale valide ou non
-- `locale` (String) - Locale normalisée (si valide)
+- `locale` (String) - Locale canonique, région comprise (ex: `"pt-BR"`), si valide
 - `suggestions` (Array) - Suggestions (si invalide)
 
 ##### `estimate_translation_cost(text, from:, to:, rate_per_1k_chars:)`

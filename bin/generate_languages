@@ -1,7 +1,13 @@
 #!/usr/bin/env swift
-// Regenerates lib/mistral_translator/data/languages.json from CLDR, as shipped
-// with macOS Foundation: every ISO 639-1 code with its French name (used in
-// prompts), English name (accepted as an alias) and native name.
+// Regenerates lib/mistral_translator/data/*.json from CLDR, as shipped with
+// macOS Foundation:
+//
+// - languages.json: every ISO 639 language CLDR names, under its shortest code
+//   (ISO 639-1 when it exists, as BCP 47 requires), with its French name (used
+//   in prompts), English name (accepted as an alias) and native name. Two-letter
+//   languages also carry their ISO 639-3 code ("alpha3"), accepted as an alias.
+// - scripts.json: the ISO 15924 scripts CLDR locales are written in (Latn, Hant…).
+// - regions.json: the ISO 3166 and UN M.49 regions CLDR names (BR, CA, 419…).
 //
 // Usage (macOS only): bin/generate_languages
 
@@ -11,33 +17,57 @@ let french = Locale(identifier: "fr")
 let english = Locale(identifier: "en")
 // Codes CLDR still lists but has replaced (iw → he, in → id, ji → yi, mo → ro)
 let deprecated: Set<String> = ["iw", "in", "ji", "mo", "sh"]
+// Codes that name no language: multiple, undetermined, no linguistic content, uncoded
+let special: Set<String> = ["mul", "und", "zxx", "mis"]
 
 let available = Set(Locale.availableIdentifiers)
+
+// French and English names, or nil when CLDR has none (it then echoes the code).
+func names(_ code: String, _ lookup: (Locale, String) -> String?) -> [String: String]? {
+  guard let frenchName = lookup(french, code), frenchName != code,
+        let englishName = lookup(english, code), englishName != code
+  else { return nil }
+  return ["fr": frenchName, "en": englishName]
+}
+
 var languages: [String: [String: String]] = [:]
 
 for code in Locale.LanguageCode.isoLanguageCodes.map(\.identifier) {
-  guard code.count == 2, !deprecated.contains(code) else { continue }
-  guard let frenchName = french.localizedString(forLanguageCode: code), frenchName != code,
-        let englishName = english.localizedString(forLanguageCode: code), englishName != code
+  guard !deprecated.contains(code), !special.contains(code),
+        var entry = names(code, { $0.localizedString(forLanguageCode: $1) })
   else { continue }
 
   // Without CLDR data for the language itself, Foundation answers in the system
   // language: fall back to the English name instead.
-  let nativeName = available.contains(code)
-    ? Locale(identifier: code).localizedString(forLanguageCode: code) ?? englishName
-    : englishName
-  languages[code] = ["fr": frenchName, "en": englishName, "native": nativeName]
+  entry["native"] = available.contains(code)
+    ? Locale(identifier: code).localizedString(forLanguageCode: code) ?? entry["en"]
+    : entry["en"]
+  if code.count == 2, let alpha3 = Locale.LanguageCode(code).identifier(.alpha3), alpha3 != code {
+    entry["alpha3"] = alpha3
+  }
+  languages[code] = entry
+}
+
+let scriptCodes = Set(Locale.availableIdentifiers.compactMap { Locale(identifier: $0).language.script?.identifier })
+let scripts = scriptCodes.reduce(into: [String: [String: String]]()) { result, code in
+  result[code] = names(code, { $0.localizedString(forScriptCode: $1) })
+}
+
+let regions = Locale.Region.isoRegions.map(\.identifier).reduce(into: [String: [String: String]]()) { result, code in
+  result[code] = names(code, { $0.localizedString(forRegionCode: $1) })
 }
 
 let encoder = JSONEncoder()
 encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-let data = try encoder.encode(languages)
-
-let output = URL(fileURLWithPath: CommandLine.arguments[0])
+let directory = URL(fileURLWithPath: CommandLine.arguments[0])
   .deletingLastPathComponent()
-  .appendingPathComponent("../lib/mistral_translator/data/languages.json")
+  .appendingPathComponent("../lib/mistral_translator/data")
   .standardizedFileURL
-try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
-try (String(decoding: data, as: UTF8.self) + "\n").write(to: output, atomically: true, encoding: .utf8)
+try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-print("\(languages.count) languages written to \(output.path)")
+for (file, entries) in [("languages", languages), ("scripts", scripts), ("regions", regions)] {
+  let output = directory.appendingPathComponent("\(file).json")
+  try (String(decoding: try encoder.encode(entries), as: UTF8.self) + "\n")
+    .write(to: output, atomically: true, encoding: .utf8)
+  print("\(entries.count) \(file) written to \(output.path)")
+}

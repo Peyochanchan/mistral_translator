@@ -41,7 +41,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
     end
 
     it "returns input for unknown languages" do
-      expect(described_class.language_to_locale("klingon")).to eq("klingon")
+      expect(described_class.language_to_locale("dothraki")).to eq("dothraki")
       expect(described_class.language_to_locale("unknown")).to eq("unknown")
     end
   end
@@ -73,7 +73,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
 
     it "returns false for unsupported locales" do
       expect(described_class.locale_supported?("xx")).to be false
-      expect(described_class.locale_supported?("klingon")).to be false
+      expect(described_class.locale_supported?("dothraki")).to be false
     end
 
     it "normalizes locales before checking" do
@@ -84,10 +84,11 @@ RSpec.describe MistralTranslator::LocaleHelper do
   end
 
   describe ".validate_locale!" do
-    it "returns normalized locale for supported locales" do
+    it "returns the canonical locale, region included" do
       expect(described_class.validate_locale!("fr")).to eq("fr")
-      expect(described_class.validate_locale!("fr-FR")).to eq("fr")
-      expect(described_class.validate_locale!("EN_us")).to eq("en")
+      expect(described_class.validate_locale!("fr-FR")).to eq("fr-FR")
+      expect(described_class.validate_locale!("EN_us")).to eq("en-US")
+      expect(described_class.validate_locale!("allemand")).to eq("de")
     end
 
     it "raises UnsupportedLanguageError for unsupported locales" do
@@ -140,7 +141,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
   describe ".prompt_language_name" do
     it "gives the French name followed by the code" do
       expect(described_class.prompt_language_name("en")).to eq("anglais (en)")
-      expect(described_class.prompt_language_name("ja-JP")).to eq("japonais (ja)")
+      expect(described_class.prompt_language_name("ja-JP")).to eq("japonais (Japon) (ja-JP)")
     end
 
     it "falls back to the code for an unknown locale" do

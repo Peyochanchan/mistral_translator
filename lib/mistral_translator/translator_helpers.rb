@@ -56,12 +56,13 @@ module MistralTranslator
       end
 
       # Fail-closed : une détection illisible ou une langue non supportée lève une erreur,
-      # au lieu de supposer une langue et de renvoyer le texte non traduit.
+      # au lieu de supposer une langue et de renvoyer le texte non traduit. Seule la langue
+      # est gardée : un « fr-FR » détecté ne doit pas différer d'une cible « fr ».
       def parse_language_detection(response)
         data = JSON.parse(response.to_s)
         metadata = data["metadata"] if data.is_a?(Hash)
-        detected = LocaleHelper.normalize_locale(metadata["detected_language"]) if metadata.is_a?(Hash)
-        return detected if detected && LocaleHelper.locale_supported?(detected)
+        detected = Locale.find(metadata["detected_language"]) if metadata.is_a?(Hash)
+        return detected.language if detected
 
         raise InvalidResponseError.new("Language detection failed", response)
       rescue JSON::ParserError
