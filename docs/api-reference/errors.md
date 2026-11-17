@@ -647,7 +647,7 @@ describe "error handling" do
   it "provides fallback for unsupported languages" do
     result = translate_with_fallback(
       "Hello",
-      from: "klingon",
+      from: "dothraki",
       to: "fr",
       fallback: "Hello"
     )

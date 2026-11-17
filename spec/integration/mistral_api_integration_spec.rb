@@ -343,7 +343,7 @@ RSpec.describe "Mistral API Integration", :vcr do
 
     it "handles unsupported languages" do
       expect do
-        MistralTranslator.translate("Hello", from: "klingon", to: "fr")
+        MistralTranslator.translate("Hello", from: "dothraki", to: "fr")
       end.to raise_error(MistralTranslator::UnsupportedLanguageError)
     end
   end
