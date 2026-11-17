@@ -103,9 +103,9 @@ config.setup_rails_logging  # Active les logs Rails standard
 MistralTranslator.health_check
 # => { status: :ok, message: "API connection successful" }
 
-# Langues supportées : les 182 codes ISO 639-1
+# Langues supportées : 619 codes ISO 639-1 et ISO 639-3
 MistralTranslator.supported_locales
-# => ["aa", "ab", "ae", "af", ..., "zh", "zu"]
+# => ["aa", "ab", "ace", "acf", ..., "zun", "zza"]
 ```
 
 ---

@@ -1,3 +1,22 @@
+## [Unreleased]
+
+### Added
+
+- 437 languages that only have an ISO 639-3 code (`haw`, `yue`, `fil`…), 619 in all. The ISO 639-3 code of a two-letter language is accepted in its place (`hat` for `ht`).
+- Scripts and regions: `pt-BR`, `zh-Hant-TW`, `es-419`, any combination of the scripts and regions CLDR names. The prompt names the variant, such as « portugais (Brésil) (pt-BR) ».
+- `MistralTranslator::Locale`, a value object that reads a locale (`Locale.parse`, or `Locale.find`, which returns `nil` instead of raising) and gives its canonical form (`to_s`).
+- Language names work wherever a locale is expected: `translate(text, from: "fr", to: "allemand")`. They only worked in locale suggestions. A name several languages share, such as "konkani", is rejected: use the code.
+- `bin/generate_languages` also writes `scripts.json` and `regions.json`.
+
+### Changed
+
+Only regional locales and locales with extensions are affected; two-letter codes behave as before.
+
+- A locale keeps its region. `translate_to_multiple(text, from: "en", to: ["pt-BR"])` returns `{ "pt-BR" => … }` instead of `{ "pt" => … }`, and `validate_locale!("pt-BR")` returns `"pt-BR"` instead of `"pt"`. Before, `pt-BR` and `pt-PT` in the same call overwrote each other.
+- Two variants of a language are no longer the same locale: from `fr` to `fr-CA`, the text is translated by the API instead of being returned unchanged. A Rails app with `fr` and `fr-CA` locales now gets an adapted translation, for one more request.
+- Variants and extensions (`ca-ES-valencia`, `en-US-u-ca-gregory`) raise `UnsupportedLanguageError`. Their subtags used to be dropped silently, leaving the language only.
+- `locale_supported?` returns `true` for language names, which `translate` now accepts.
+
 ## [0.5.0] - 2026-10-29
 
 ### Added
