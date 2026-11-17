@@ -320,7 +320,7 @@ RSpec.describe MistralTranslator::Helpers do
     end
 
     it "suggests nothing for an unrelated word or code" do
-      expect(described_class.send(:find_locale_suggestions, "klingon")).to be_empty
+      expect(described_class.send(:find_locale_suggestions, "dothraki")).to be_empty
       expect(described_class.send(:find_locale_suggestions, "xx")).to be_empty
     end
   end

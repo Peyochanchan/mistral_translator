@@ -41,7 +41,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
     end
 
     it "returns input for unknown languages" do
-      expect(described_class.language_to_locale("klingon")).to eq("klingon")
+      expect(described_class.language_to_locale("dothraki")).to eq("dothraki")
       expect(described_class.language_to_locale("unknown")).to eq("unknown")
     end
   end
@@ -73,7 +73,7 @@ RSpec.describe MistralTranslator::LocaleHelper do
 
     it "returns false for unsupported locales" do
       expect(described_class.locale_supported?("xx")).to be false
-      expect(described_class.locale_supported?("klingon")).to be false
+      expect(described_class.locale_supported?("dothraki")).to be false
     end
 
     it "normalizes locales before checking" do

@@ -1,0 +1,182 @@
+{
+  "Adlm" : {
+    "en" : "Adlam",
+    "fr" : "adlam"
+  },
+  "Arab" : {
+    "en" : "Arabic",
+    "fr" : "arabe"
+  },
+  "Aran" : {
+    "en" : "Nastaliq",
+    "fr" : "nastaliq"
+  },
+  "Armn" : {
+    "en" : "Armenian",
+    "fr" : "arménien"
+  },
+  "Beng" : {
+    "en" : "Bangla",
+    "fr" : "bengali"
+  },
+  "Cakm" : {
+    "en" : "Chakma",
+    "fr" : "chakma"
+  },
+  "Cans" : {
+    "en" : "Syllabics",
+    "fr" : "syllabaire"
+  },
+  "Cher" : {
+    "en" : "Cherokee",
+    "fr" : "cherokee"
+  },
+  "Cyrl" : {
+    "en" : "Cyrillic",
+    "fr" : "cyrillique"
+  },
+  "Deva" : {
+    "en" : "Devanagari",
+    "fr" : "dévanagari"
+  },
+  "Ethi" : {
+    "en" : "Ethiopic",
+    "fr" : "éthiopique"
+  },
+  "Geor" : {
+    "en" : "Georgian",
+    "fr" : "géorgien"
+  },
+  "Grek" : {
+    "en" : "Greek",
+    "fr" : "grec"
+  },
+  "Gujr" : {
+    "en" : "Gujarati",
+    "fr" : "goudjarâtî"
+  },
+  "Guru" : {
+    "en" : "Gurmukhi",
+    "fr" : "gourmoukhî"
+  },
+  "Hans" : {
+    "en" : "Simplified Han",
+    "fr" : "sinogrammes simplifiés"
+  },
+  "Hant" : {
+    "en" : "Traditional Han",
+    "fr" : "sinogrammes traditionnels"
+  },
+  "Hebr" : {
+    "en" : "Hebrew",
+    "fr" : "hébreu"
+  },
+  "Hmng" : {
+    "en" : "Pahawh Hmong",
+    "fr" : "pahawh hmong"
+  },
+  "Jpan" : {
+    "en" : "Japanese",
+    "fr" : "japonais"
+  },
+  "Kana" : {
+    "en" : "Katakana",
+    "fr" : "katakana"
+  },
+  "Khmr" : {
+    "en" : "Khmer",
+    "fr" : "khmer"
+  },
+  "Knda" : {
+    "en" : "Kannada",
+    "fr" : "kannara"
+  },
+  "Kore" : {
+    "en" : "Korean",
+    "fr" : "coréen"
+  },
+  "Laoo" : {
+    "en" : "Lao",
+    "fr" : "lao"
+  },
+  "Latn" : {
+    "en" : "Latin",
+    "fr" : "latin"
+  },
+  "Mand" : {
+    "en" : "Mandaean",
+    "fr" : "mandéen"
+  },
+  "Mlym" : {
+    "en" : "Malayalam",
+    "fr" : "malayalam"
+  },
+  "Mtei" : {
+    "en" : "Meitei Mayek",
+    "fr" : "meitei mayek"
+  },
+  "Mymr" : {
+    "en" : "Myanmar",
+    "fr" : "birman"
+  },
+  "Nkoo" : {
+    "en" : "N’Ko",
+    "fr" : "n’ko"
+  },
+  "Olck" : {
+    "en" : "Ol Chiki",
+    "fr" : "ol-chiki"
+  },
+  "Orya" : {
+    "en" : "Odia",
+    "fr" : "odia"
+  },
+  "Rjng" : {
+    "en" : "Rejang",
+    "fr" : "rejang"
+  },
+  "Rohg" : {
+    "en" : "Hanifi Rohingya",
+    "fr" : "hanifi"
+  },
+  "Sinh" : {
+    "en" : "Sinhala",
+    "fr" : "cingalais"
+  },
+  "Syrc" : {
+    "en" : "Syriac",
+    "fr" : "syriaque"
+  },
+  "Taml" : {
+    "en" : "Tamil",
+    "fr" : "tamoul"
+  },
+  "Telu" : {
+    "en" : "Telugu",
+    "fr" : "télougou"
+  },
+  "Tfng" : {
+    "en" : "Tifinagh",
+    "fr" : "tifinagh"
+  },
+  "Thaa" : {
+    "en" : "Thaana",
+    "fr" : "thâna"
+  },
+  "Tibt" : {
+    "en" : "Tibetan",
+    "fr" : "tibétain"
+  },
+  "Vaii" : {
+    "en" : "Vai",
+    "fr" : "vaï"
+  },
+  "Wcho" : {
+    "en" : "Wancho",
+    "fr" : "wantcho"
+  },
+  "Yiii" : {
+    "en" : "Yi",
+    "fr" : "yi"
+  }
+}
